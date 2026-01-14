@@ -4,15 +4,9 @@ name: Upgrade Next.js (Monorepo)
 
 on:
   workflow_dispatch:
-  push:
-    branches: [ main ]
-    paths:
-      - 'storefront/**'
-      - 'backend/**'
 
 jobs:
   upgrade-storefront:
-    if: ${{ github.event_name == 'workflow_dispatch' || contains(join(github.event.head_commit.modified, ' '), 'storefront/') }}
     runs-on: ubuntu-latest
     defaults:
       run:
@@ -20,26 +14,23 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - uses: actions/setup-node@v4
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
         with:
           node-version: 20
           cache: 'pnpm'
           cache-dependency-path: storefront/pnpm-lock.yaml
 
-      - uses: pnpm/action-setup@v3
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v3
         with:
-          version: 9
+          version: 9 # or omit to use default
 
       - name: Upgrade Next.js and refresh lockfile
         run: |
           pnpm up next@^15.1.11
           pnpm dedupe
           pnpm install --frozen-lockfile=false
-
-      - name: Show versions (debug)
-        run: |
-          pnpm list next | cat
-          grep -n "next@15.1.2" pnpm-lock.yaml || echo "No next@15.1.2 left"
 
       - name: Commit & push if changed
         run: |
@@ -54,8 +45,6 @@ jobs:
           fi
 
   upgrade-backend:
-    # Run only if backend changed or manual dispatch
-    if: ${{ github.event_name == 'workflow_dispatch' || contains(join(github.event.head_commit.modified, ' '), 'backend/') }}
     runs-on: ubuntu-latest
     defaults:
       run:
@@ -63,28 +52,33 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - uses: actions/setup-node@v4
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
         with:
           node-version: 20
           cache: 'pnpm'
           cache-dependency-path: backend/pnpm-lock.yaml
 
-      - uses: pnpm/action-setup@v3
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v3
         with:
           version: 9
 
-      # Only do this if your backend actually uses Next.js
-      - name: Upgrade Next.js and refresh lockfile
+      - name: Upgrade Next.js and refresh lockfile (skip if not present)
         run: |
-          pnpm up next@^15.1.11 || echo "No Next.js here; skipping."
-          pnpm dedupe || true
+          if jq -e '.dependencies.next // .devDependencies.next' package.json > /dev/null; then
+            pnpm up next@^15.1.11
+            pnpm dedupe
+          else
+            echo "No Next.js dependency in backend; skipping upgrade."
+          fi
           pnpm install --frozen-lockfile=false
 
       - name: Commit & push if changed
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add package.json pnpm-lock.yaml
+          git add package.json pnpm-lock.yaml || true
           if ! git diff --cached --quiet; then
             git commit -m "chore(backend): refresh lockfile"
             git push
