@@ -24,7 +24,9 @@
   "dependencies": {
     "@headlessui/react": "^1.6.1",
     "@hookform/error-message": "^2.0.0",
+    "@medusajs/framework": "^2.12.5",
     "@medusajs/js-sdk": "preview",
+    "@medusajs/medusa": "^2.12.5",
     "@medusajs/types": "preview",
     "@medusajs/ui": "preview",
     "@meilisearch/instant-meilisearch": "^0.7.1",
