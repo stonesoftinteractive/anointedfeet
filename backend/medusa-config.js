@@ -47,6 +47,7 @@ const medusaConfig = {
   },
   admin: {
     backendUrl: BACKEND_URL,
+    path: '/',
     disable: SHOULD_DISABLE_ADMIN,
   },
   modules: [
