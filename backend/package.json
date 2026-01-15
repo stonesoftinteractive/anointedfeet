@@ -71,7 +71,7 @@
   "packageManager": "pnpm@10.0.0",
   "pnpm": {
   "overrides": {
-    "next": "15.1.6",
+    "next": "15.1.11",
     "@mikro-orm/core": "6.4.16",
     "@mikro-orm/knex": "6.4.16",
     "@mikro-orm/postgresql": "6.4.16",
