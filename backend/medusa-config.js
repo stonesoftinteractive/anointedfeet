@@ -51,6 +51,17 @@ const medusaConfig = {
   },
   modules: [
     {
+      resolve: "@medusajs/medusa/fulfillment",
+      options: {
+        providers: [
+          {
+            resolve: "@medusajs/medusa/fulfillment-manual",
+            id: "manual",
+          },
+        ],
+      },
+    },
+    {
       key: Modules.FILE,
       resolve: '@medusajs/file',
       options: {
