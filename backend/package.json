@@ -21,14 +21,14 @@
     "email:dev": "email dev --dir=./src/modules/email-notifications/templates --port=3002"
   },
   "dependencies": {
-    "@medusajs/admin-sdk": "2.10.2",
+    "@medusajs/admin-sdk": "2.12.5",
     "@medusajs/admin-shared": "2.12.5",
-    "@medusajs/cli": "2.10.2",
-    "@medusajs/dashboard": "2.10.2",
+    "@medusajs/cli": "2.12.5",
+    "@medusajs/dashboard": "2.12.5",
     "@medusajs/draft-order": "2.12.5",
-    "@medusajs/framework": "2.10.2",
-    "@medusajs/icons": "2.10.2",
-    "@medusajs/medusa": "2.10.2",
+    "@medusajs/framework": "2.12.5",
+    "@medusajs/icons": "2.12.5",
+    "@medusajs/medusa": "2.12.5",
     "@medusajs/notification-sendgrid": "2.12.5",
     "@medusajs/payment-stripe": "2.12.5",
     "@medusajs/types": "2.12.5",
@@ -80,7 +80,7 @@
       "@mikro-orm/migrations": "6.4.16",
       "@mikro-orm/reflection": "6.4.16",
       "@mikro-orm/cli": "6.4.16",
-      "@medusajs/*": "2.10.2",
+      "@medusajs/*": "2.12.5",
       "posthog-node": "^4.17.1",
       "picomatch": "^3.0.1"
     }
