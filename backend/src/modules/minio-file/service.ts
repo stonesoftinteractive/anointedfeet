@@ -1,58 +1,64 @@
-import { AbstractFileProviderService, MedusaError } from '@medusajs/framework/utils';
-import { Logger } from '@medusajs/framework/types';
-import { 
+import {
+  AbstractFileProviderService,
+  MedusaError,
+} from "@medusajs/framework/utils";
+import { Logger } from "@medusajs/framework/types";
+import {
   ProviderUploadFileDTO,
   ProviderDeleteFileDTO,
   ProviderFileResultDTO,
-  ProviderGetFileDTO
-} from '@medusajs/framework/types';
-import { Client } from 'minio';
-import path from 'path';
-import { ulid } from 'ulid';
+  ProviderGetFileDTO,
+} from "@medusajs/framework/types";
+import { Client } from "minio";
+import path from "path";
+import { ulid } from "ulid";
 
 type InjectedDependencies = {
-  logger: Logger
-}
+  logger: Logger;
+};
 
 interface MinioServiceConfig {
-  endPoint: string
-  accessKey: string
-  secretKey: string
-  bucket?: string
+  endPoint: string;
+  accessKey: string;
+  secretKey: string;
+  bucket?: string;
 }
 
 export interface MinioFileProviderOptions {
-  endPoint: string
-  accessKey: string
-  secretKey: string
-  bucket?: string
+  endPoint: string;
+  accessKey: string;
+  secretKey: string;
+  bucket?: string;
 }
 
-const DEFAULT_BUCKET = 'medusa-media'
+const DEFAULT_BUCKET = "medusa-media";
 
 /**
  * Service to handle file storage using MinIO.
  */
 class MinioFileProviderService extends AbstractFileProviderService {
-  static identifier = 'minio-file'
-  protected readonly config_: MinioServiceConfig
-  protected readonly logger_: Logger
-  protected client: Client
-  protected readonly bucket: string
+  static identifier = "minio-file";
+  protected readonly config_: MinioServiceConfig;
+  protected readonly logger_: Logger;
+  protected client: Client;
+  protected readonly bucket: string;
 
-  constructor({ logger }: InjectedDependencies, options: MinioFileProviderOptions) {
-    super()
-    this.logger_ = logger
+  constructor(
+    { logger }: InjectedDependencies,
+    options: MinioFileProviderOptions,
+  ) {
+    super();
+    this.logger_ = logger;
     this.config_ = {
       endPoint: options.endPoint,
       accessKey: options.accessKey,
       secretKey: options.secretKey,
-      bucket: options.bucket
-    }
+      bucket: options.bucket,
+    };
 
     // Use provided bucket or default
-    this.bucket = this.config_.bucket || DEFAULT_BUCKET
-    this.logger_.info(`MinIO service initialized with bucket: ${this.bucket}`)
+    this.bucket = this.config_.bucket || DEFAULT_BUCKET;
+    this.logger_.info(`MinIO service initialized with bucket: ${this.bucket}`);
 
     // Initialize Minio client with hardcoded SSL settings
     this.client = new Client({
@@ -60,185 +66,163 @@ class MinioFileProviderService extends AbstractFileProviderService {
       port: 443,
       useSSL: true,
       accessKey: this.config_.accessKey,
-      secretKey: this.config_.secretKey
-    })
+      secretKey: this.config_.secretKey,
+    });
 
     // Initialize bucket and policy
-    this.initializeBucket().catch(error => {
-      this.logger_.error(`Failed to initialize MinIO bucket: ${error.message}`)
-    })
+    this.initializeBucket().catch((error) => {
+      this.logger_.error(`Failed to initialize MinIO bucket: ${error.message}`);
+    });
   }
 
   static validateOptions(options: Record<string, any>) {
-    const requiredFields = [
-      'endPoint',
-      'accessKey',
-      'secretKey'
-    ]
+    const requiredFields = ["endPoint", "accessKey", "secretKey"];
 
     requiredFields.forEach((field) => {
       if (!options[field]) {
         throw new MedusaError(
           MedusaError.Types.INVALID_DATA,
-          `${field} is required in the provider's options`
-        )
+          `${field} is required in the provider's options`,
+        );
       }
-    })
+    });
   }
 
   private async initializeBucket(): Promise<void> {
     try {
       // Check if bucket exists
-      const bucketExists = await this.client.bucketExists(this.bucket)
-      
+      const bucketExists = await this.client.bucketExists(this.bucket);
+
       if (!bucketExists) {
         // Create the bucket
-        await this.client.makeBucket(this.bucket)
-        this.logger_.info(`Created bucket: ${this.bucket}`)
+        await this.client.makeBucket(this.bucket);
+        this.logger_.info(`Created bucket: ${this.bucket}`);
 
         // Set bucket policy to allow public read access
         const policy = {
-          Version: '2012-10-17',
+          Version: "2012-10-17",
           Statement: [
             {
-              Sid: 'PublicRead',
-              Effect: 'Allow',
-              Principal: '*',
-              Action: ['s3:GetObject'],
-              Resource: [`arn:aws:s3:::${this.bucket}/*`]
-            }
-          ]
-        }
+              Sid: "PublicRead",
+              Effect: "Allow",
+              Principal: "*",
+              Action: ["s3:GetObject"],
+              Resource: [`arn:aws:s3:::${this.bucket}/*`],
+            },
+          ],
+        };
 
-        await this.client.setBucketPolicy(this.bucket, JSON.stringify(policy))
-        this.logger_.info(`Set public read policy for bucket: ${this.bucket}`)
+        await this.client.setBucketPolicy(this.bucket, JSON.stringify(policy));
+        this.logger_.info(`Set public read policy for bucket: ${this.bucket}`);
       } else {
-        this.logger_.info(`Using existing bucket: ${this.bucket}`)
-        
+        this.logger_.info(`Using existing bucket: ${this.bucket}`);
+
         // Verify/update policy on existing bucket
         try {
           const policy = {
-            Version: '2012-10-17',
+            Version: "2012-10-17",
             Statement: [
               {
-                Sid: 'PublicRead',
-                Effect: 'Allow',
-                Principal: '*',
-                Action: ['s3:GetObject'],
-                Resource: [`arn:aws:s3:::${this.bucket}/*`]
-              }
-            ]
-          }
-          await this.client.setBucketPolicy(this.bucket, JSON.stringify(policy))
-          this.logger_.info(`Updated public read policy for existing bucket: ${this.bucket}`)
+                Sid: "PublicRead",
+                Effect: "Allow",
+                Principal: "*",
+                Action: ["s3:GetObject"],
+                Resource: [`arn:aws:s3:::${this.bucket}/*`],
+              },
+            ],
+          };
+          await this.client.setBucketPolicy(
+            this.bucket,
+            JSON.stringify(policy),
+          );
+          this.logger_.info(
+            `Updated public read policy for existing bucket: ${this.bucket}`,
+          );
         } catch (policyError) {
-          this.logger_.warn(`Failed to update policy for existing bucket: ${policyError.message}`)
+          this.logger_.warn(
+            `Failed to update policy for existing bucket: ${policyError.message}`,
+          );
         }
       }
     } catch (error) {
-      this.logger_.error(`Error initializing bucket: ${error.message}`)
-      throw error
+      this.logger_.error(`Error initializing bucket: ${error.message}`);
+      throw error;
     }
   }
 
-  async upload(
-    file: ProviderUploadFileDTO
-  ): Promise<ProviderFileResultDTO> {
-    if (!file) {
-      throw new MedusaError(
-        MedusaError.Types.INVALID_DATA,
-        'No file provided'
-      )
-    }
-
-    if (!file.filename) {
-      throw new MedusaError(
-        MedusaError.Types.INVALID_DATA,
-        'No filename provided'
-      )
-    }
-
+  async upload(file: ProviderUploadFileDTO): Promise<ProviderFileResultDTO> {
     try {
-      const parsedFilename = path.parse(file.filename)
-      const fileKey = `${parsedFilename.name}-${ulid()}${parsedFilename.ext}`
-      const content = Buffer.from(file.content, 'binary')
+      const parsedFilename = path.parse(file.filename);
+      // Clean name and add ULID to prevent overwriting same-named files
+      const cleanName = parsedFilename.name.replace(/\s+/g, "-").toLowerCase();
+      const fileKey = `${cleanName}-${ulid()}${parsedFilename.ext}`;
 
-      // Upload file with public-read access
+      const content = Buffer.isBuffer(file.content)
+        ? file.content
+        : Buffer.from(file.content as string, "base64"); // Medusa sometimes sends base64
+
       await this.client.putObject(
         this.bucket,
         fileKey,
         content,
         content.length,
         {
-          'Content-Type': file.mimeType,
-          'x-amz-meta-original-filename': file.filename,
-          'x-amz-acl': 'public-read'
-        }
-      )
+          "Content-Type": file.mimeType,
+          "x-amz-meta-original-filename": file.filename,
+        },
+      );
 
-      // Generate URL using the endpoint and bucket
-      const url = `https://${this.config_.endPoint}/${this.bucket}/${fileKey}`
+      const url = `https://${this.config_.endPoint}/${this.bucket}/${fileKey}`;
 
-      this.logger_.info(`Successfully uploaded file ${fileKey} to MinIO bucket ${this.bucket}`)
-
-      return {
-        url,
-        key: fileKey
-      }
-    } catch (error) {
-      this.logger_.error(`Failed to upload file: ${error.message}`)
-      throw new MedusaError(
-        MedusaError.Types.UNEXPECTED_STATE,
-        `Failed to upload file: ${error.message}`
-      )
-    }
+      return { url, key: fileKey };
+    } catch (error) {}
   }
 
-  async delete(
-    fileData: ProviderDeleteFileDTO
-  ): Promise<void> {
+  async delete(fileData: ProviderDeleteFileDTO): Promise<void> {
     if (!fileData?.fileKey) {
       throw new MedusaError(
         MedusaError.Types.INVALID_DATA,
-        'No file key provided'
-      )
+        "No file key provided",
+      );
     }
 
     try {
-      await this.client.removeObject(this.bucket, fileData.fileKey)
-      this.logger_.info(`Successfully deleted file ${fileData.fileKey} from MinIO bucket ${this.bucket}`)
+      await this.client.removeObject(this.bucket, fileData.fileKey);
+      this.logger_.info(
+        `Successfully deleted file ${fileData.fileKey} from MinIO bucket ${this.bucket}`,
+      );
     } catch (error) {
       // Log error but don't throw if file doesn't exist
-      this.logger_.warn(`Failed to delete file ${fileData.fileKey}: ${error.message}`)
+      this.logger_.warn(
+        `Failed to delete file ${fileData.fileKey}: ${error.message}`,
+      );
     }
   }
 
-  async getPresignedDownloadUrl(
-    fileData: ProviderGetFileDTO
-  ): Promise<string> {
+  async getPresignedDownloadUrl(fileData: ProviderGetFileDTO): Promise<string> {
     if (!fileData?.fileKey) {
       throw new MedusaError(
         MedusaError.Types.INVALID_DATA,
-        'No file key provided'
-      )
+        "No file key provided",
+      );
     }
 
     try {
       const url = await this.client.presignedGetObject(
         this.bucket,
         fileData.fileKey,
-        24 * 60 * 60 // URL expires in 24 hours
-      )
-      this.logger_.info(`Generated presigned URL for file ${fileData.fileKey}`)
-      return url
+        24 * 60 * 60, // URL expires in 24 hours
+      );
+      this.logger_.info(`Generated presigned URL for file ${fileData.fileKey}`);
+      return url;
     } catch (error) {
-      this.logger_.error(`Failed to generate presigned URL: ${error.message}`)
+      this.logger_.error(`Failed to generate presigned URL: ${error.message}`);
       throw new MedusaError(
         MedusaError.Types.UNEXPECTED_STATE,
-        `Failed to generate presigned URL: ${error.message}`
-      )
+        `Failed to generate presigned URL: ${error.message}`,
+      );
     }
   }
 }
 
-export default MinioFileProviderService
+export default MinioFileProviderService;
