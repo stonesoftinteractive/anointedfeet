@@ -1,8 +1,5 @@
 import { loadEnv, Modules, defineConfig } from "@medusajs/utils";
-<<<<<<< HEAD
 import { t } from "@mikro-orm/core";
-=======
->>>>>>> 8d7539ac52276240bf3df9b48e07de2e69a410c3
 import {
   ADMIN_CORS,
   AUTH_CORS,
@@ -95,7 +92,6 @@ const medusaConfig = defineConfig({
      * ============================
      */
     {
-<<<<<<< HEAD
       key: Modules.FILE,
       resolve: "@medusajs/file",
       options: {
@@ -126,24 +122,6 @@ const medusaConfig = defineConfig({
         ],
       },
     },
-=======
-      resolve: "@medusajs/medusa/fulfillment",
-      options: {
-        providers: [
-          {
-            resolve: "@medusajs/medusa/fulfillment-manual",
-            id: "manual",
-          },
-        ],
-      },
-    },
-
-    /**
-     * ============================
-     * REDIS (optional)
-     * ============================
-     */
->>>>>>> 8d7539ac52276240bf3df9b48e07de2e69a410c3
     ...(REDIS_URL
       ? [
           {
@@ -203,15 +181,12 @@ const medusaConfig = defineConfig({
           },
         ]
       : []),
-<<<<<<< HEAD
-=======
 
     /**
      * ============================
      * PAYMENTS (Stripe)
      * ============================
      */
->>>>>>> 8d7539ac52276240bf3df9b48e07de2e69a410c3
     ...(STRIPE_API_KEY && STRIPE_WEBHOOK_SECRET
       ? [
           {
@@ -225,11 +200,8 @@ const medusaConfig = defineConfig({
                   options: {
                     apiKey: STRIPE_API_KEY,
                     webhookSecret: STRIPE_WEBHOOK_SECRET,
-<<<<<<< HEAD
                     payment_description: "Order from Anointed Feet",
                     automatic_payment_methods: true,
-=======
->>>>>>> 8d7539ac52276240bf3df9b48e07de2e69a410c3
                   },
                 },
               ],
@@ -266,7 +238,6 @@ const medusaConfig = defineConfig({
                     "variant_sku",
                     "thumbnail",
                   ],
-<<<<<<< HEAD
                   indexSettings: {
                     searchableAttributes: [
                       "title",
@@ -283,8 +254,6 @@ const medusaConfig = defineConfig({
                     ],
                     filterableAttributes: ["id", "handle"],
                   },
-=======
->>>>>>> 8d7539ac52276240bf3df9b48e07de2e69a410c3
                   primaryKey: "id",
                 },
               },
@@ -293,10 +262,6 @@ const medusaConfig = defineConfig({
         ]
       : []),
   ],
-<<<<<<< HEAD
-};
-=======
 });
->>>>>>> 8d7539ac52276240bf3df9b48e07de2e69a410c3
 
 export default medusaConfig;
