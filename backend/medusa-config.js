@@ -85,6 +85,15 @@ const medusaConfig = defineConfig({
         ],
       },
     },
+    /**
+     * ============================
+     * TAXES
+     * ============================
+     */
+    {
+      resolve: "@medusajs/medusa/tax",
+      options: {},
+    },
 
     /**
      * ============================
