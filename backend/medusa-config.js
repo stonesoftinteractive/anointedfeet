@@ -93,7 +93,7 @@ const medusaConfig = defineConfig({
             options: {
               providers: [
                 {
-                  resolve: "@medusajs/tax-stripe",
+                  resolve: "@medusajs/tax-provider-stripe",
                   id: "stripe",
                   options: {
                     apiKey: STRIPE_API_KEY,
