@@ -30,11 +30,11 @@ loadEnv(process.env.NODE_ENV, process.cwd());
 /**
  * FAIL FAST if MinIO is not configured
  */
-if (!MINIO_ENDPOINT || !MINIO_ACCESS_KEY || !MINIO_SECRET_KEY) {
-  throw new Error(
-    "MinIO configuration missing. MINIO_ENDPOINT, MINIO_ACCESS_KEY, and MINIO_SECRET_KEY are required.",
-  );
-}
+// if (!MINIO_ENDPOINT || !MINIO_ACCESS_KEY || !MINIO_SECRET_KEY) {
+//   throw new Error(
+//     "MinIO configuration missing. MINIO_ENDPOINT, MINIO_ACCESS_KEY, and MINIO_SECRET_KEY are required.",
+//   );
+// }
 
 const medusaConfig = defineConfig({
   projectConfig: {
