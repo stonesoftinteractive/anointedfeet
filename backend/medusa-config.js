@@ -1,5 +1,8 @@
 import { loadEnv, Modules, defineConfig } from "@medusajs/utils";
+<<<<<<< HEAD
 import { t } from "@mikro-orm/core";
+=======
+>>>>>>> 8d7539ac52276240bf3df9b48e07de2e69a410c3
 import {
   ADMIN_CORS,
   AUTH_CORS,
@@ -27,7 +30,16 @@ import {
 
 loadEnv(process.env.NODE_ENV, process.cwd());
 
-const medusaConfig = {
+/**
+ * 🔥 FAIL FAST if MinIO is not configured
+ */
+if (!MINIO_ENDPOINT || !MINIO_ACCESS_KEY || !MINIO_SECRET_KEY) {
+  throw new Error(
+    "MinIO configuration missing. MINIO_ENDPOINT, MINIO_ACCESS_KEY, and MINIO_SECRET_KEY are required.",
+  );
+}
+
+const medusaConfig = defineConfig({
   projectConfig: {
     databaseUrl: DATABASE_URL,
     databaseLogging: false,
@@ -46,23 +58,44 @@ const medusaConfig = {
       },
     },
   },
+
   admin: {
     backendUrl: BACKEND_URL,
     disable: SHOULD_DISABLE_ADMIN,
   },
+
   modules: [
+    /**
+     * ============================
+     * FILE STORAGE — MINIO ONLY
+     * ============================
+     */
     {
-      resolve: "@medusajs/medusa/fulfillment",
+      key: Modules.FILE,
+      resolve: "@medusajs/file",
       options: {
         providers: [
           {
-            resolve: "@medusajs/medusa/fulfillment-manual",
-            id: "manual",
+            resolve: "./src/modules/minio-file",
+            id: "minio",
+            options: {
+              endPoint: MINIO_ENDPOINT,
+              accessKey: MINIO_ACCESS_KEY,
+              secretKey: MINIO_SECRET_KEY,
+              bucket: MINIO_BUCKET ?? "medusa-media",
+            },
           },
         ],
       },
     },
+
+    /**
+     * ============================
+     * FULFILLMENT
+     * ============================
+     */
     {
+<<<<<<< HEAD
       key: Modules.FILE,
       resolve: "@medusajs/file",
       options: {
@@ -93,6 +126,24 @@ const medusaConfig = {
         ],
       },
     },
+=======
+      resolve: "@medusajs/medusa/fulfillment",
+      options: {
+        providers: [
+          {
+            resolve: "@medusajs/medusa/fulfillment-manual",
+            id: "manual",
+          },
+        ],
+      },
+    },
+
+    /**
+     * ============================
+     * REDIS (optional)
+     * ============================
+     */
+>>>>>>> 8d7539ac52276240bf3df9b48e07de2e69a410c3
     ...(REDIS_URL
       ? [
           {
@@ -152,6 +203,15 @@ const medusaConfig = {
           },
         ]
       : []),
+<<<<<<< HEAD
+=======
+
+    /**
+     * ============================
+     * PAYMENTS (Stripe)
+     * ============================
+     */
+>>>>>>> 8d7539ac52276240bf3df9b48e07de2e69a410c3
     ...(STRIPE_API_KEY && STRIPE_WEBHOOK_SECRET
       ? [
           {
@@ -165,8 +225,11 @@ const medusaConfig = {
                   options: {
                     apiKey: STRIPE_API_KEY,
                     webhookSecret: STRIPE_WEBHOOK_SECRET,
+<<<<<<< HEAD
                     payment_description: "Order from Anointed Feet",
                     automatic_payment_methods: true,
+=======
+>>>>>>> 8d7539ac52276240bf3df9b48e07de2e69a410c3
                   },
                 },
               ],
@@ -175,6 +238,12 @@ const medusaConfig = {
         ]
       : []),
   ],
+
+  /**
+   * ============================
+   * SEARCH (Meilisearch)
+   * ============================
+   */
   plugins: [
     ...(MEILISEARCH_HOST && MEILISEARCH_ADMIN_KEY
       ? [
@@ -197,6 +266,7 @@ const medusaConfig = {
                     "variant_sku",
                     "thumbnail",
                   ],
+<<<<<<< HEAD
                   indexSettings: {
                     searchableAttributes: [
                       "title",
@@ -213,6 +283,8 @@ const medusaConfig = {
                     ],
                     filterableAttributes: ["id", "handle"],
                   },
+=======
+>>>>>>> 8d7539ac52276240bf3df9b48e07de2e69a410c3
                   primaryKey: "id",
                 },
               },
@@ -221,7 +293,10 @@ const medusaConfig = {
         ]
       : []),
   ],
+<<<<<<< HEAD
 };
+=======
+});
+>>>>>>> 8d7539ac52276240bf3df9b48e07de2e69a410c3
 
-console.log(JSON.stringify(medusaConfig, null, 2));
-export default defineConfig(medusaConfig);
+export default medusaConfig;
