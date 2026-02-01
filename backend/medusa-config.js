@@ -83,29 +83,6 @@ const medusaConfig = defineConfig({
     },
 
     /**
-     * TAXES — Stripe Tax Provider
-     */
-    ...(STRIPE_API_KEY
-      ? [
-          {
-            key: Modules.TAX,
-            resolve: "@medusajs/tax",
-            options: {
-              providers: [
-                {
-                  resolve: "@medusajs/tax-provider-stripe",
-                  id: "stripe",
-                  options: {
-                    apiKey: STRIPE_API_KEY,
-                  },
-                },
-              ],
-            },
-          },
-        ]
-      : []),
-
-    /**
      * PAYMENTS — Stripe (single block only)
      */
     ...(STRIPE_API_KEY && STRIPE_WEBHOOK_SECRET
@@ -123,6 +100,7 @@ const medusaConfig = defineConfig({
                     webhookSecret: STRIPE_WEBHOOK_SECRET,
                     payment_description: "Order from Anointed Feet",
                     automatic_payment_methods: true,
+                    automatic_tax: true,
                   },
                 },
               ],
