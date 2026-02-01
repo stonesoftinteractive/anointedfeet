@@ -100,11 +100,6 @@ const medusaConfig = defineConfig({
         automatic_tax: true,
       },
     },
-    {
-      resolve: "@medusajs/medusa/tax",
-      options: {},
-    },
-
     /**
      * ============================
      * FULFILLMENT
