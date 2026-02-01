@@ -38,6 +38,7 @@ if (!MINIO_ENDPOINT || !MINIO_ACCESS_KEY || !MINIO_SECRET_KEY) {
 
 const medusaConfig = defineConfig({
   projectConfig: {
+    tax_enabled: true,
     databaseUrl: DATABASE_URL,
     databaseLogging: false,
     redisUrl: REDIS_URL,
@@ -90,6 +91,15 @@ const medusaConfig = defineConfig({
      * TAXES
      * ============================
      */
+    {
+      resolve: "@medusajs/payment-stripe",
+      options: {
+        api_key: process.env.STRIPE_API_KEY,
+        webhook_secret: process.env.STRIPE_WEBHOOK_SECRET,
+        capture: true,
+        automatic_tax: true,
+      },
+    },
     {
       resolve: "@medusajs/medusa/tax",
       options: {},
