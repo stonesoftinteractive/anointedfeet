@@ -30,11 +30,11 @@ loadEnv(process.env.NODE_ENV, process.cwd());
 /**
  * FAIL FAST if MinIO is not configured
  */
-// if (!MINIO_ENDPOINT || !MINIO_ACCESS_KEY || !MINIO_SECRET_KEY) {
-//   throw new Error(
-//     "MinIO configuration missing. MINIO_ENDPOINT, MINIO_ACCESS_KEY, and MINIO_SECRET_KEY are required.",
-//   );
-// }
+if (!MINIO_ENDPOINT || !MINIO_ACCESS_KEY || !MINIO_SECRET_KEY) {
+  throw new Error(
+    "MinIO configuration missing. MINIO_ENDPOINT, MINIO_ACCESS_KEY, and MINIO_SECRET_KEY are required.",
+  );
+}
 
 const medusaConfig = defineConfig({
   projectConfig: {
@@ -91,15 +91,26 @@ const medusaConfig = defineConfig({
      * TAXES
      * ============================
      */
-    {
-      resolve: "@medusajs/payment-stripe",
-      options: {
-        api_key: process.env.STRIPE_API_KEY,
-        webhook_secret: process.env.STRIPE_WEBHOOK_SECRET,
-        capture: true,
-        automatic_tax: true,
-      },
-    },
+    ...(STRIPE_API_KEY && STRIPE_WEBHOOK_SECRET
+      ? [
+          {
+            key: Modules.PAYMENT,
+            resolve: "@medusajs/payment",
+            options: {
+              providers: [
+                {
+                  resolve: "@medusajs/payment-stripe",
+                  id: "stripe",
+                  options: {
+                    apiKey: STRIPE_API_KEY,
+                    webhookSecret: STRIPE_WEBHOOK_SECRET,
+                  },
+                },
+              ],
+            },
+          },
+        ]
+      : []),
     /**
      * ============================
      * FULFILLMENT
