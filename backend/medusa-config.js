@@ -28,7 +28,7 @@ import {
 loadEnv(process.env.NODE_ENV, process.cwd());
 
 /**
- * 🔥 FAIL FAST if MinIO is not configured
+ * FAIL FAST if MinIO is not configured
  */
 if (!MINIO_ENDPOINT || !MINIO_ACCESS_KEY || !MINIO_SECRET_KEY) {
   throw new Error(
