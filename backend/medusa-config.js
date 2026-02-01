@@ -27,9 +27,6 @@ import {
 
 loadEnv(process.env.NODE_ENV, process.cwd());
 
-/**
- * FAIL FAST if MinIO is not configured
- */
 if (!MINIO_ENDPOINT || !MINIO_ACCESS_KEY || !MINIO_SECRET_KEY) {
   throw new Error(
     "MinIO configuration missing. MINIO_ENDPOINT, MINIO_ACCESS_KEY, and MINIO_SECRET_KEY are required.",
@@ -64,9 +61,7 @@ const medusaConfig = defineConfig({
 
   modules: [
     /**
-     * ============================
      * FILE STORAGE — MINIO ONLY
-     * ============================
      */
     {
       key: Modules.FILE,
@@ -86,31 +81,58 @@ const medusaConfig = defineConfig({
         ],
       },
     },
-    /**
-     * ============================
-     * TAXES
-     * ============================
-     */
-    {
-      key: Modules.TAX,
-      resolve: "@medusajs/tax",
-      options: {
-        providers: [
-          {
-            resolve: "@medusajs/tax-stripe",
-            id: "stripe",
-            options: {
-              apiKey: STRIPE_API_KEY,
-            },
-          },
-        ],
-      },
-    },
 
     /**
-     * ============================
+     * TAXES — Stripe Tax Provider
+     */
+    ...(STRIPE_API_KEY
+      ? [
+          {
+            key: Modules.TAX,
+            resolve: "@medusajs/tax",
+            options: {
+              providers: [
+                {
+                  resolve: "@medusajs/tax-stripe",
+                  id: "stripe",
+                  options: {
+                    apiKey: STRIPE_API_KEY,
+                  },
+                },
+              ],
+            },
+          },
+        ]
+      : []),
+
+    /**
+     * PAYMENTS — Stripe (single block only)
+     */
+    ...(STRIPE_API_KEY && STRIPE_WEBHOOK_SECRET
+      ? [
+          {
+            key: Modules.PAYMENT,
+            resolve: "@medusajs/payment",
+            options: {
+              providers: [
+                {
+                  resolve: "@medusajs/payment-stripe",
+                  id: "stripe",
+                  options: {
+                    apiKey: STRIPE_API_KEY,
+                    webhookSecret: STRIPE_WEBHOOK_SECRET,
+                    payment_description: "Order from Anointed Feet",
+                    automatic_payment_methods: true,
+                  },
+                },
+              ],
+            },
+          },
+        ]
+      : []),
+
+    /**
      * FULFILLMENT
-     * ============================
      */
     {
       key: Modules.FILE,
@@ -126,7 +148,7 @@ const medusaConfig = defineConfig({
                     endPoint: MINIO_ENDPOINT,
                     accessKey: MINIO_ACCESS_KEY,
                     secretKey: MINIO_SECRET_KEY,
-                    bucket: MINIO_BUCKET, // Optional, default: medusa-media
+                    bucket: MINIO_BUCKET,
                   },
                 },
               ]
@@ -143,6 +165,7 @@ const medusaConfig = defineConfig({
         ],
       },
     },
+
     ...(REDIS_URL
       ? [
           {
@@ -163,6 +186,7 @@ const medusaConfig = defineConfig({
           },
         ]
       : []),
+
     ...((SENDGRID_API_KEY && SENDGRID_FROM_EMAIL) ||
     (RESEND_API_KEY && RESEND_FROM_EMAIL)
       ? [
@@ -202,41 +226,8 @@ const medusaConfig = defineConfig({
           },
         ]
       : []),
-
-    /**
-     * ============================
-     * PAYMENTS (Stripe)
-     * ============================
-     */
-    ...(STRIPE_API_KEY && STRIPE_WEBHOOK_SECRET
-      ? [
-          {
-            key: Modules.PAYMENT,
-            resolve: "@medusajs/payment",
-            options: {
-              providers: [
-                {
-                  resolve: "@medusajs/payment-stripe",
-                  id: "stripe",
-                  options: {
-                    apiKey: STRIPE_API_KEY,
-                    webhookSecret: STRIPE_WEBHOOK_SECRET,
-                    payment_description: "Order from Anointed Feet",
-                    automatic_payment_methods: true,
-                  },
-                },
-              ],
-            },
-          },
-        ]
-      : []),
   ],
 
-  /**
-   * ============================
-   * SEARCH (Meilisearch)
-   * ============================
-   */
   plugins: [
     ...(MEILISEARCH_HOST && MEILISEARCH_ADMIN_KEY
       ? [
