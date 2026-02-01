@@ -91,26 +91,22 @@ const medusaConfig = defineConfig({
      * TAXES
      * ============================
      */
-    ...(STRIPE_API_KEY && STRIPE_WEBHOOK_SECRET
-      ? [
+    {
+      key: Modules.TAX,
+      resolve: "@medusajs/tax",
+      options: {
+        providers: [
           {
-            key: Modules.PAYMENT,
-            resolve: "@medusajs/payment",
+            resolve: "@medusajs/tax-stripe",
+            id: "stripe",
             options: {
-              providers: [
-                {
-                  resolve: "@medusajs/payment-stripe",
-                  id: "stripe",
-                  options: {
-                    apiKey: STRIPE_API_KEY,
-                    webhookSecret: STRIPE_WEBHOOK_SECRET,
-                  },
-                },
-              ],
+              apiKey: STRIPE_API_KEY,
             },
           },
-        ]
-      : []),
+        ],
+      },
+    },
+
     /**
      * ============================
      * FULFILLMENT
