@@ -195,6 +195,7 @@ const medusaConfig = defineConfig({
                           channels: ["email"],
                           api_key: RESEND_API_KEY,
                           from: RESEND_FROM_EMAIL,
+                          replyTo: RESEND_REPLY_TO,
                         },
                       },
                     ]
