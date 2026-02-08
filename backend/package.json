@@ -42,7 +42,6 @@
     "@react-email/components": "^0.0.32",
     "@rokmohar/medusa-plugin-meilisearch": "^1.3.5",
     "awilix": "^8.0.1",
-    "medusa-fulfillment-shippo": "^1.1.2",
     "medusajs-launch-utils": "^0.0.18",
     "minio": "^8.0.3",
     "next": "^15.5.9",
