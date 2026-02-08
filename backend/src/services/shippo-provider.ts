@@ -24,10 +24,8 @@ export default class ShippoProvider {
   ============================== */
   async getFulfillmentOptions() {
     return [
-      {
-        id: "shippo-standard",
-        name: "Shippo Standard",
-      },
+      { id: "usps-ground", name: "USPS Ground" },
+      { id: "usps-priority", name: "USPS Priority" },
     ];
   }
 
