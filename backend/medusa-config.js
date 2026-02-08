@@ -164,13 +164,13 @@ const medusaConfig = defineConfig({
           },
         ]
       : []),
+    {
+      resolve: "./src/modules/shippo",
+    },
 
     ...((SENDGRID_API_KEY && SENDGRID_FROM_EMAIL) ||
     (RESEND_API_KEY && RESEND_FROM_EMAIL)
       ? [
-          {
-            resolve: "./src/modules/shippo",
-          },
           {
             key: Modules.NOTIFICATION,
             resolve: "@medusajs/notification",
