@@ -10,7 +10,6 @@ import {
   REDIS_URL,
   RESEND_API_KEY,
   RESEND_FROM_EMAIL,
-  RESEND_REPLY_TO,
   SENDGRID_API_KEY,
   SENDGRID_FROM_EMAIL,
   SHOULD_DISABLE_ADMIN,
@@ -196,7 +195,6 @@ const medusaConfig = defineConfig({
                           channels: ["email"],
                           api_key: RESEND_API_KEY,
                           from: RESEND_FROM_EMAIL,
-                          replyTo: RESEND_REPLY_TO,
                         },
                       },
                     ]
