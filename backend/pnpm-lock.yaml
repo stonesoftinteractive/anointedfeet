@@ -98,6 +98,9 @@ importers:
       resend:
         specifier: ^4.0.1
         version: 4.8.0(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
+      shippo:
+        specifier: ^2.18.0
+        version: 2.18.0
       ulid:
         specifier: ^2.3.0
         version: 2.4.0
@@ -6985,6 +6988,9 @@ packages:
 
   shimmer@1.2.1:
     resolution: {integrity: sha512-sQTKC1Re/rM6XyFM6fIAGHRPVGvyXfgzIDvzoq608vM+jeyVD0Tu1E6Np0Kc2zAIFWIj963V2800iF/9LPieQw==}
+
+  shippo@2.18.0:
+    resolution: {integrity: sha512-cTSwKlH8IFrtuaH3X9iOPy+kG32KVegKkDmj+ICrkl+rpUPeKz4MKdSNUAQnxoP66ezIfj7Tnfv2+3hluUxh8g==}
 
   side-channel-list@1.0.0:
     resolution: {integrity: sha512-FCLHtRD/gnpCiCHEiJLOwdmFP+wzCmDEkc9y7NsYxeF4u7Btsn1ZuwgwJGxImImHicJArLP4R0yX4c2KCrMrTA==}
@@ -16412,6 +16418,10 @@ snapshots:
   shebang-regex@3.0.0: {}
 
   shimmer@1.2.1: {}
+
+  shippo@2.18.0:
+    dependencies:
+      zod: 3.25.76
 
   side-channel-list@1.0.0:
     dependencies:

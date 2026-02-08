@@ -169,6 +169,9 @@ const medusaConfig = defineConfig({
     (RESEND_API_KEY && RESEND_FROM_EMAIL)
       ? [
           {
+            resolve: "./src/modules/shippo",
+          },
+          {
             key: Modules.NOTIFICATION,
             resolve: "@medusajs/notification",
             options: {

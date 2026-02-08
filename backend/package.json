@@ -47,6 +47,7 @@
     "next": "^15.5.9",
     "pg": "^8.13.1",
     "resend": "^4.0.1",
+    "shippo": "^2.18.0",
     "ulid": "^2.3.0"
   },
   "devDependencies": {
