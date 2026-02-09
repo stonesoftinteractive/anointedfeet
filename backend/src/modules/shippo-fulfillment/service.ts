@@ -83,6 +83,7 @@ class ShippoFulfillmentService extends AbstractFulfillmentProviderService {
 
       const shippingAddress = context.shipping_address;
       if (!shippingAddress?.postal_code || !shippingAddress?.country_code) {
+        console.log("[Shippo] Missing shipping address");
         return {
           calculated_amount: 0,
           is_calculated_price_tax_inclusive: false,
@@ -91,7 +92,7 @@ class ShippoFulfillmentService extends AbstractFulfillmentProviderService {
 
       const isExpress = optionData.id === "shippo-express";
 
-      // Origin Address (Your Store from .env)
+      // Origin Address
       const addressFrom = {
         name: process.env.STORE_NAME || "Your Store",
         street1: process.env.STORE_ADDRESS_STREET || "",
@@ -114,7 +115,7 @@ class ShippoFulfillmentService extends AbstractFulfillmentProviderService {
         country: shippingAddress.country_code || "",
       };
 
-      // Calculate total weight from cart items
+      // Calculate weight
       let totalWeight = 0;
       let itemCount = 0;
 
@@ -122,55 +123,44 @@ class ShippoFulfillmentService extends AbstractFulfillmentProviderService {
         context.items.forEach((item: any) => {
           const quantity = item.quantity || 1;
           const variant = item.variant || {};
-
-          // Weight in pounds - if not set, use reasonable default (0.5 lb for small items)
           const itemWeight = variant.weight || 0.5;
+
           totalWeight += itemWeight * quantity;
           itemCount += quantity;
         });
       }
 
-      // Ensure minimum weight of 1 lb
       if (totalWeight < 1) totalWeight = 1;
 
-      // Estimate box dimensions based on weight and item count
-      // This is a simple heuristic - adjust based on your typical products
+      // Estimate box dimensions
       let parcelLength, parcelWidth, parcelHeight;
 
       if (totalWeight <= 1) {
-        // Small package (socks, small items)
         parcelLength = 10;
         parcelWidth = 7;
         parcelHeight = 3;
       } else if (totalWeight <= 3) {
-        // Medium package
         parcelLength = 12;
         parcelWidth = 9;
         parcelHeight = 4;
       } else if (totalWeight <= 5) {
-        // Large package
         parcelLength = 14;
         parcelWidth = 10;
         parcelHeight = 6;
       } else {
-        // Extra large
         parcelLength = 16;
         parcelWidth = 12;
         parcelHeight = 8;
       }
 
-      // Adjust for multiple items
       if (itemCount > 3) {
         parcelHeight = Math.min(parcelHeight + 2, 12);
       }
 
-      console.log("[Shippo] Shipping details:", {
-        itemCount,
-        totalWeight: `${totalWeight} lb`,
-        dimensions: `${parcelLength}x${parcelWidth}x${parcelHeight} in`,
-        from: `${addressFrom.city}, ${addressFrom.state} ${addressFrom.zip}`,
-        to: `${addressTo.city}, ${addressTo.state} ${addressTo.zip}`,
-      });
+      console.log(
+        "[Shippo] Calculating for:",
+        isExpress ? "EXPRESS" : "STANDARD",
+      );
 
       // Create Shipment
       const shipment = await shippo.shipments.create({
@@ -182,7 +172,7 @@ class ShippoFulfillmentService extends AbstractFulfillmentProviderService {
             width: parcelWidth.toString(),
             height: parcelHeight.toString(),
             distanceUnit: "in",
-            weight: totalWeight.toFixed(2), // Use 2 decimal places
+            weight: totalWeight.toFixed(2),
             massUnit: "lb",
           },
         ],
@@ -190,14 +180,13 @@ class ShippoFulfillmentService extends AbstractFulfillmentProviderService {
       });
 
       if (!shipment.rates || shipment.rates.length === 0) {
-        console.error("[Shippo] No rates returned from Shippo");
+        console.error("[Shippo] No rates returned");
         return {
           calculated_amount: 0,
           is_calculated_price_tax_inclusive: false,
         };
       }
 
-      // Log all rates for debugging
       console.log("[Shippo] Available rates:");
       shipment.rates.forEach((r: any) => {
         console.log(
@@ -205,52 +194,75 @@ class ShippoFulfillmentService extends AbstractFulfillmentProviderService {
         );
       });
 
-      // Filter rates based on service level
-      const serviceLevelMap: Record<string, string[]> = {
-        standard: ["usps_priority", "ups_ground", "fedex_ground", "usps_first"],
-        express: [
-          "usps_priority_express",
-          "ups_next_day_air",
-          "fedex_2_day",
-          "ups_2_day",
-        ],
-      };
+      // Updated service level map - more specific filtering
+      let filteredRates;
 
-      const serviceLevel = isExpress ? "express" : "standard";
-      const serviceLevels = serviceLevelMap[serviceLevel];
+      if (isExpress) {
+        // Express: Only overnight and 2-day services
+        filteredRates = shipment.rates.filter((rate: any) => {
+          const token = rate.servicelevel?.token?.toLowerCase() || "";
+          const name = rate.servicelevel?.name?.toLowerCase() || "";
 
-      const filteredRates = shipment.rates.filter((rate: any) =>
-        serviceLevels.some((level) =>
-          rate.servicelevel?.token?.toLowerCase().includes(level.toLowerCase()),
-        ),
-      );
-
-      console.log(
-        `[Shippo] Filtered ${serviceLevel} rates:`,
-        filteredRates.length,
-      );
-
-      let selectedRate;
-
-      if (filteredRates.length === 0) {
-        console.warn(
-          "[Shippo] No matching service level rates, using cheapest available",
-        );
-        selectedRate = shipment.rates.reduce((cheapest: any, rate: any) => {
-          return parseFloat(rate.amount) < parseFloat(cheapest.amount)
-            ? rate
-            : cheapest;
+          return (
+            token.includes("next_day") ||
+            token.includes("overnight") ||
+            token.includes("2_day") ||
+            token.includes("second_day") ||
+            token.includes("express") ||
+            name.includes("express") ||
+            name.includes("overnight") ||
+            name.includes("next day") ||
+            name.includes("2 day")
+          );
         });
       } else {
-        // Get cheapest rate from filtered options
-        selectedRate = filteredRates.reduce((cheapest: any, rate: any) => {
-          return parseFloat(rate.amount) < parseFloat(cheapest.amount)
-            ? rate
-            : cheapest;
+        // Standard: Ground and priority, but NOT express or overnight
+        filteredRates = shipment.rates.filter((rate: any) => {
+          const token = rate.servicelevel?.token?.toLowerCase() || "";
+          const name = rate.servicelevel?.name?.toLowerCase() || "";
+
+          // Include ground, priority (but not express), and 3-day
+          const isStandard =
+            token.includes("ground") ||
+            token.includes("3_day") ||
+            token.includes("advantage") ||
+            (token.includes("priority") && !token.includes("express"));
+
+          // Exclude express/overnight services
+          const isExpress =
+            token.includes("next_day") ||
+            token.includes("overnight") ||
+            token.includes("2_day") ||
+            token.includes("second_day") ||
+            token.includes("express") ||
+            name.includes("express") ||
+            name.includes("overnight");
+
+          return isStandard && !isExpress;
         });
       }
 
-      // Store rate ID for label creation later
+      console.log(
+        `[Shippo] Filtered ${isExpress ? "EXPRESS" : "STANDARD"} rates:`,
+        filteredRates.length,
+      );
+      filteredRates.forEach((r: any) => {
+        console.log(`  - ${r.provider} ${r.servicelevel?.name}: $${r.amount}`);
+      });
+
+      if (filteredRates.length === 0) {
+        console.warn("[Shippo] No matching rates, using cheapest available");
+        filteredRates = shipment.rates;
+      }
+
+      // Get cheapest rate
+      const selectedRate = filteredRates.reduce((cheapest: any, rate: any) => {
+        return parseFloat(rate.amount) < parseFloat(cheapest.amount)
+          ? rate
+          : cheapest;
+      });
+
+      // Store rate ID for label creation
       if (!data.metadata) {
         (data as any).metadata = {};
       }
@@ -259,11 +271,11 @@ class ShippoFulfillmentService extends AbstractFulfillmentProviderService {
 
       const priceInCents = Math.round(parseFloat(selectedRate.amount) * 100);
 
-      console.log("[Shippo] Selected rate:", {
+      console.log("[Shippo] SELECTED:", {
+        type: isExpress ? "EXPRESS" : "STANDARD",
         provider: selectedRate.provider,
         service: selectedRate.servicelevel?.name,
         amount: `$${selectedRate.amount}`,
-        priceInCents: `${priceInCents}¢`,
       });
 
       return {
@@ -271,10 +283,7 @@ class ShippoFulfillmentService extends AbstractFulfillmentProviderService {
         is_calculated_price_tax_inclusive: false,
       };
     } catch (error: any) {
-      console.error("[Shippo] Error calculating price:", error.message);
-      if (error.response) {
-        console.error("[Shippo] API error:", error.response);
-      }
+      console.error("[Shippo] Error:", error.message);
       return {
         calculated_amount: 0,
         is_calculated_price_tax_inclusive: false,
