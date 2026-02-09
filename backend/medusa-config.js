@@ -81,7 +81,21 @@ const medusaConfig = defineConfig({
         ],
       },
     },
-
+    /**
+     * SHIPPO — Shipping Integration
+     */
+    {
+      resolve: "./src/modules/shippo",
+      options: {
+        api_key: process.env.SHIPPO_API_KEY,
+      },
+      providers: [
+        {
+          resolve: "./src/modules/shippo-fulfillment",
+          id: "shippo-fulfillment",
+        },
+      ],
+    },
     /**
      * PAYMENTS — Stripe (single block only)
      */
