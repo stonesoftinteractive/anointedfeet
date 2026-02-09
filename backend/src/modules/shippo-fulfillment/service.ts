@@ -1,27 +1,59 @@
 // src/modules/shippo-fulfillment/service.ts
-const Shippo = require("shippo").default;
-
 import { AbstractFulfillmentProviderService } from "@medusajs/framework/utils";
 import type {
   CalculatedShippingOptionPrice,
   CreateFulfillmentResult,
 } from "@medusajs/types";
+
 class ShippoFulfillmentService extends AbstractFulfillmentProviderService {
   static identifier = "shippo-fulfillment";
 
   protected options_: Record<string, any>;
-  protected shippo_: any;
+  protected shippo_: any = null;
 
   constructor(_: any, options?: Record<string, any>) {
     super();
-
     this.options_ = options || {};
-    // Initialize Shippo correctly
+    console.log("[Shippo] Service initialized (lazy loading enabled)");
+  }
+
+  private getShippoClient() {
+    if (this.shippo_) {
+      return this.shippo_;
+    }
+
     const apiKey = process.env.SHIPPO_API_KEY || "";
 
-    this.shippo_ = new Shippo({
-      apiKeyHeader: apiKey,
-    });
+    if (!apiKey) {
+      throw new Error("SHIPPO_API_KEY not set in environment variables");
+    }
+
+    try {
+      // Try multiple import methods
+      let Shippo;
+
+      // Method 1: Try require with default
+      try {
+        const shippoModule = require("shippo");
+        Shippo = shippoModule.default || shippoModule.Shippo || shippoModule;
+      } catch (e) {
+        console.error("[Shippo] Require failed, trying direct import");
+      }
+
+      if (!Shippo || typeof Shippo !== "function") {
+        throw new Error("Could not load Shippo SDK");
+      }
+
+      this.shippo_ = new Shippo({
+        apiKeyHeader: apiKey,
+      });
+
+      console.log("[Shippo] Client initialized successfully");
+      return this.shippo_;
+    } catch (error: any) {
+      console.error("[Shippo] Failed to initialize:", error.message);
+      throw error;
+    }
   }
 
   async getFulfillmentOptions(): Promise<any[]> {
@@ -58,7 +90,10 @@ class ShippoFulfillmentService extends AbstractFulfillmentProviderService {
     data: Record<string, unknown>,
     context: Record<string, unknown>,
   ): Promise<CalculatedShippingOptionPrice> {
+    console.log("[Shippo] calculatePrice called");
+
     try {
+      const shippo = this.getShippoClient();
       const cart = context as any;
 
       // Validate shipping address exists
@@ -66,6 +101,7 @@ class ShippoFulfillmentService extends AbstractFulfillmentProviderService {
         !cart.shipping_address?.postal_code ||
         !cart.shipping_address?.country_code
       ) {
+        console.log("[Shippo] Incomplete or missing shipping address");
         return {
           calculated_amount: 0,
           is_calculated_price_tax_inclusive: false,
@@ -97,20 +133,20 @@ class ShippoFulfillmentService extends AbstractFulfillmentProviderService {
         country: cart.shipping_address.country_code || "",
       };
 
-      // Calculate total weight from cart items
-      let totalWeight = 1; // default 1 lb
+      // Calculate total weight
+      let totalWeight = 1;
       if (cart.items && Array.isArray(cart.items)) {
         totalWeight = cart.items.reduce((sum: number, item: any) => {
           const weight = item.variant?.weight || 1;
           const quantity = item.quantity || 1;
           return sum + weight * quantity;
         }, 0);
-        // Ensure minimum weight
         if (totalWeight < 1) totalWeight = 1;
       }
 
-      // Create shipment to get rates
-      const shipment = await this.shippo_.shipments.create({
+      console.log("[Shippo] Creating shipment...");
+
+      const shipment = await shippo.shipments.create({
         address_from: addressFrom,
         address_to: addressTo,
         parcels: [
@@ -126,16 +162,14 @@ class ShippoFulfillmentService extends AbstractFulfillmentProviderService {
         async: false,
       });
 
-      // Check if we got rates
       if (!shipment.rates || shipment.rates.length === 0) {
-        console.error("No rates returned from Shippo");
+        console.error("[Shippo] No rates returned");
         return {
           calculated_amount: 0,
           is_calculated_price_tax_inclusive: false,
         };
       }
 
-      // Filter rates by service level
       const serviceLevelMap: Record<string, string[]> = {
         standard: ["usps_priority", "ups_ground", "fedex_ground"],
         express: [
@@ -154,37 +188,35 @@ class ShippoFulfillmentService extends AbstractFulfillmentProviderService {
       );
 
       if (filteredRates.length === 0) {
-        console.warn(`No ${serviceLevel} rates available for this shipment`);
+        console.warn(`[Shippo] No ${serviceLevel} rates available`);
         return {
           calculated_amount: 0,
           is_calculated_price_tax_inclusive: false,
         };
       }
 
-      // Get cheapest rate
       const cheapestRate = filteredRates.reduce((cheapest: any, rate: any) => {
         const currentAmount = parseFloat(rate.amount || "0");
         const cheapestAmount = parseFloat(cheapest.amount || "999999");
         return currentAmount < cheapestAmount ? rate : cheapest;
       });
 
-      // Store rate ID in data metadata for later use - FIXED HERE
       if (!data.metadata) {
         (data as any).metadata = {};
       }
       (data as any).metadata.shippo_rate_id = cheapestRate.object_id;
       (data as any).metadata.carrier = cheapestRate.provider;
 
-      // Return calculated price
       const priceInCents = Math.round(parseFloat(cheapestRate.amount) * 100);
+
+      console.log("[Shippo] Price calculated:", priceInCents, "cents");
 
       return {
         calculated_amount: priceInCents,
         is_calculated_price_tax_inclusive: false,
       };
-    } catch (error) {
-      console.error("Error calculating Shippo price:", error);
-      // Return 0 instead of throwing to prevent checkout errors
+    } catch (error: any) {
+      console.error("[Shippo] Error:", error.message);
       return {
         calculated_amount: 0,
         is_calculated_price_tax_inclusive: false,
@@ -199,19 +231,16 @@ class ShippoFulfillmentService extends AbstractFulfillmentProviderService {
     fulfillment: any,
   ): Promise<CreateFulfillmentResult> {
     try {
+      const shippo = this.getShippoClient();
       const metadata = (data as any).metadata || {};
       const rateId = metadata.shippo_rate_id;
 
       if (!rateId) {
-        console.warn("No Shippo rate ID found in metadata");
-        return {
-          data: {},
-          labels: [],
-        };
+        console.warn("[Shippo] No rate ID found");
+        return { data: {}, labels: [] };
       }
 
-      // Create the shipping label
-      const transaction = await this.shippo_.transactions.create({
+      const transaction = await shippo.transactions.create({
         rate: rateId,
         async: false,
       });
@@ -230,11 +259,8 @@ class ShippoFulfillmentService extends AbstractFulfillmentProviderService {
         ],
       };
     } catch (error) {
-      console.error("Error creating Shippo fulfillment:", error);
-      return {
-        data: {},
-        labels: [],
-      };
+      console.error("[Shippo] Fulfillment error:", error);
+      return { data: {}, labels: [] };
     }
   }
 
@@ -243,10 +269,7 @@ class ShippoFulfillmentService extends AbstractFulfillmentProviderService {
   }
 
   async createReturn(data: Record<string, unknown>): Promise<any> {
-    return {
-      data: {},
-      labels: [],
-    };
+    return { data: {}, labels: [] };
   }
 }
 
