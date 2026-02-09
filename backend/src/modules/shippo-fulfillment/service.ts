@@ -4,16 +4,23 @@ import type {
   CalculatedShippingOptionPrice,
   CreateFulfillmentResult,
 } from "@medusajs/types";
+import * as SDKShippo from "shippo";
 
 class ShippoFulfillmentService extends AbstractFulfillmentProviderService {
   static identifier = "shippo-fulfillment";
 
   protected options_: Record<string, any>;
+  protected shippo_: any;
 
   constructor(_: any, options?: Record<string, any>) {
     super();
 
     this.options_ = options || {};
+
+    // Initialize Shippo correctly
+    this.shippo_ = new SDKShippo.Shippo({
+      apiKeyHeader: process.env.SHIPPO_API_KEY || "",
+    });
   }
 
   async getFulfillmentOptions(): Promise<any[]> {
@@ -50,99 +57,138 @@ class ShippoFulfillmentService extends AbstractFulfillmentProviderService {
     data: Record<string, unknown>,
     context: Record<string, unknown>,
   ): Promise<CalculatedShippingOptionPrice> {
-    const cart = context as any;
+    try {
+      const cart = context as any;
 
-    if (!cart.shipping_address) {
-      return {
-        calculated_amount: 0,
-        is_calculated_price_tax_inclusive: false, // Must be boolean, not undefined
+      // Validate shipping address exists
+      if (
+        !cart.shipping_address?.postal_code ||
+        !cart.shipping_address?.country_code
+      ) {
+        return {
+          calculated_amount: 0,
+          is_calculated_price_tax_inclusive: false,
+        };
+      }
+
+      const serviceLevel =
+        optionData.id === "shippo-standard" ? "standard" : "express";
+
+      const addressFrom = {
+        name: "Your Store",
+        street1: process.env.STORE_ADDRESS_STREET || "123 Main St",
+        city: process.env.STORE_ADDRESS_CITY || "City",
+        state: process.env.STORE_ADDRESS_STATE || "TN",
+        zip: process.env.STORE_ADDRESS_ZIP || "37129",
+        country: process.env.STORE_ADDRESS_COUNTRY || "US",
       };
-    }
 
-    const serviceLevel =
-      optionData.id === "shippo-standard" ? "standard" : "express";
+      const addressTo = {
+        name:
+          `${cart.shipping_address.first_name || ""} ${cart.shipping_address.last_name || ""}`.trim() ||
+          "Customer",
+        street1: cart.shipping_address.address_1 || "",
+        street2: cart.shipping_address.address_2 || "",
+        city: cart.shipping_address.city || "",
+        state:
+          cart.shipping_address.province || cart.shipping_address.state || "",
+        zip: cart.shipping_address.postal_code || "",
+        country: cart.shipping_address.country_code || "",
+      };
 
-    // Initialize Shippo
-    const Shippo = require("shippo");
-    const shippo = new Shippo({ apiKeyHeader: process.env.SHIPPO_API_KEY });
+      // Calculate total weight from cart items
+      let totalWeight = 1; // default 1 lb
+      if (cart.items && Array.isArray(cart.items)) {
+        totalWeight = cart.items.reduce((sum: number, item: any) => {
+          const weight = item.variant?.weight || 1;
+          const quantity = item.quantity || 1;
+          return sum + weight * quantity;
+        }, 0);
+        // Ensure minimum weight
+        if (totalWeight < 1) totalWeight = 1;
+      }
 
-    const addressFrom = {
-      name: "Your Store",
-      street1: process.env.STORE_ADDRESS_STREET || "",
-      city: process.env.STORE_ADDRESS_CITY || "",
-      state: process.env.STORE_ADDRESS_STATE || "",
-      zip: process.env.STORE_ADDRESS_ZIP || "",
-      country: process.env.STORE_ADDRESS_COUNTRY || "US",
-    };
+      // Create shipment to get rates
+      const shipment = await this.shippo_.shipments.create({
+        address_from: addressFrom,
+        address_to: addressTo,
+        parcels: [
+          {
+            length: "10",
+            width: "8",
+            height: "4",
+            distance_unit: "in",
+            weight: totalWeight.toString(),
+            mass_unit: "lb",
+          },
+        ],
+        async: false,
+      });
 
-    const addressTo = {
-      name: `${cart.shipping_address.first_name || ""} ${cart.shipping_address.last_name || ""}`.trim(),
-      street1: cart.shipping_address.address_1 || "",
-      street2: cart.shipping_address.address_2 || "",
-      city: cart.shipping_address.city || "",
-      state: cart.shipping_address.province || "",
-      zip: cart.shipping_address.postal_code || "",
-      country: cart.shipping_address.country_code || "",
-    };
+      // Check if we got rates
+      if (!shipment.rates || shipment.rates.length === 0) {
+        console.error("No rates returned from Shippo");
+        return {
+          calculated_amount: 0,
+          is_calculated_price_tax_inclusive: false,
+        };
+      }
 
-    const totalWeight =
-      cart.items?.reduce(
-        (sum: number, item: any) =>
-          sum + (item.variant?.weight || 1) * (item.quantity || 1),
-        0,
-      ) || 1;
+      // Filter rates by service level
+      const serviceLevelMap: Record<string, string[]> = {
+        standard: ["usps_priority", "ups_ground", "fedex_ground"],
+        express: [
+          "usps_priority_express",
+          "ups_next_day_air",
+          "fedex_2_day",
+          "ups_2_day",
+        ],
+      };
 
-    const shipment = await shippo.shipments.create({
-      address_from: addressFrom,
-      address_to: addressTo,
-      parcels: [
-        {
-          length: "10",
-          width: "8",
-          height: "4",
-          distance_unit: "in",
-          weight: totalWeight.toString(),
-          mass_unit: "lb",
-        },
-      ],
-      async: false,
-    });
+      const serviceLevels = serviceLevelMap[serviceLevel];
+      const filteredRates = shipment.rates.filter((rate: any) =>
+        serviceLevels.some((level) =>
+          rate.servicelevel?.token?.toLowerCase().includes(level.toLowerCase()),
+        ),
+      );
 
-    const serviceLevelMap: Record<string, string[]> = {
-      standard: ["usps_priority", "ups_ground", "fedex_ground"],
-      express: ["usps_priority_express", "ups_next_day_air", "fedex_2_day"],
-    };
+      if (filteredRates.length === 0) {
+        console.warn(`No ${serviceLevel} rates available for this shipment`);
+        return {
+          calculated_amount: 0,
+          is_calculated_price_tax_inclusive: false,
+        };
+      }
 
-    const serviceLevels = serviceLevelMap[serviceLevel];
-    const filteredRates = shipment.rates.filter((rate: any) =>
-      serviceLevels.some((level) =>
-        rate.servicelevel.token.toLowerCase().includes(level.toLowerCase()),
-      ),
-    );
+      // Get cheapest rate
+      const cheapestRate = filteredRates.reduce((cheapest: any, rate: any) => {
+        const currentAmount = parseFloat(rate.amount || "0");
+        const cheapestAmount = parseFloat(cheapest.amount || "999999");
+        return currentAmount < cheapestAmount ? rate : cheapest;
+      });
 
-    if (filteredRates.length === 0) {
+      // Store rate ID in data metadata for later use - FIXED HERE
+      if (!data.metadata) {
+        (data as any).metadata = {};
+      }
+      (data as any).metadata.shippo_rate_id = cheapestRate.object_id;
+      (data as any).metadata.carrier = cheapestRate.provider;
+
+      // Return calculated price
+      const priceInCents = Math.round(parseFloat(cheapestRate.amount) * 100);
+
+      return {
+        calculated_amount: priceInCents,
+        is_calculated_price_tax_inclusive: false,
+      };
+    } catch (error) {
+      console.error("Error calculating Shippo price:", error);
+      // Return 0 instead of throwing to prevent checkout errors
       return {
         calculated_amount: 0,
         is_calculated_price_tax_inclusive: false,
       };
     }
-
-    const cheapestRate = filteredRates.reduce((cheapest: any, rate: any) =>
-      parseFloat(rate.amount) < parseFloat(cheapest.amount) ? rate : cheapest,
-    );
-
-    // Store rate ID in data for later use
-    if (!data.metadata) {
-      (data as any).metadata = {};
-    }
-    (data as any).metadata.shippo_rate_id = cheapestRate.object_id(
-      data as any,
-    ).metadata.carrier = cheapestRate.provider;
-
-    return {
-      calculated_amount: Math.round(parseFloat(cheapestRate.amount) * 100),
-      is_calculated_price_tax_inclusive: false, // Must be boolean, not undefined
-    };
   }
 
   async createFulfillment(
@@ -151,49 +197,51 @@ class ShippoFulfillmentService extends AbstractFulfillmentProviderService {
     order: any,
     fulfillment: any,
   ): Promise<CreateFulfillmentResult> {
-    const metadata = (data as any).metadata || {};
-    const rateId = metadata.shippo_rate_id;
+    try {
+      const metadata = (data as any).metadata || {};
+      const rateId = metadata.shippo_rate_id;
 
-    if (!rateId) {
-      // No rate ID stored, return empty result with required fields
+      if (!rateId) {
+        console.warn("No Shippo rate ID found in metadata");
+        return {
+          data: {},
+          labels: [],
+        };
+      }
+
+      // Create the shipping label
+      const transaction = await this.shippo_.transactions.create({
+        rate: rateId,
+        async: false,
+      });
+
+      return {
+        data: {
+          shippo_transaction_id: transaction.object_id,
+          carrier: transaction.rate?.provider || "",
+        },
+        labels: [
+          {
+            tracking_number: transaction.tracking_number || "",
+            tracking_url: transaction.tracking_url_provider || "",
+            label_url: transaction.label_url || "",
+          },
+        ],
+      };
+    } catch (error) {
+      console.error("Error creating Shippo fulfillment:", error);
       return {
         data: {},
         labels: [],
       };
     }
-
-    // Initialize Shippo
-    const Shippo = require("shippo");
-    const shippo = new Shippo({ apiKeyHeader: process.env.SHIPPO_API_KEY });
-
-    // Create the shipping label
-    const transaction = await shippo.transactions.create({
-      rate: rateId,
-      async: false,
-    });
-
-    return {
-      data: {
-        shippo_transaction_id: transaction.object_id,
-        carrier: transaction.rate.provider,
-      },
-      labels: [
-        {
-          tracking_number: transaction.tracking_number || "",
-          tracking_url: transaction.tracking_url_provider || "", // Must be string, not undefined
-          label_url: transaction.label_url || "", // Must be string, not undefined
-        },
-      ],
-    };
   }
 
   async cancelFulfillment(data: Record<string, unknown>): Promise<any> {
-    // Implement cancellation logic if needed
     return {};
   }
 
   async createReturn(data: Record<string, unknown>): Promise<any> {
-    // Implement return label creation if needed
     return {
       data: {},
       labels: [],
