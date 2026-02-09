@@ -9,51 +9,27 @@ class ShippoFulfillmentService extends AbstractFulfillmentProviderService {
   static identifier = "shippo-fulfillment";
 
   protected options_: Record<string, any>;
-  protected shippo_: any = null;
 
   constructor(_: any, options?: Record<string, any>) {
     super();
     this.options_ = options || {};
-    console.log("[Shippo] Service initialized (lazy loading enabled)"); //
+    console.log("[Shippo] Service constructed");
   }
 
-  private getShippoClient() {
-    if (this.shippo_) {
-      return this.shippo_;
-    }
-
+  private async getShippoClient() {
     const apiKey = process.env.SHIPPO_API_KEY || "";
 
     if (!apiKey) {
       throw new Error("SHIPPO_API_KEY not set in environment variables");
     }
 
-    try {
-      // Try multiple import methods
-      let Shippo;
+    // Use dynamic import - works better with TypeScript/Medusa
+    const shippoModule = await import("shippo");
+    const Shippo = shippoModule.default;
 
-      // Method 1: Try require with default
-      try {
-        const shippoModule = require("shippo");
-        Shippo = shippoModule.default || shippoModule.Shippo || shippoModule;
-      } catch (e) {
-        console.error("[Shippo] Require failed, trying direct import");
-      }
-
-      if (!Shippo || typeof Shippo !== "function") {
-        throw new Error("Could not load Shippo SDK");
-      }
-
-      this.shippo_ = new Shippo({
-        apiKeyHeader: apiKey,
-      });
-
-      console.log("[Shippo] Client initialized successfully");
-      return this.shippo_;
-    } catch (error: any) {
-      console.error("[Shippo] Failed to initialize:", error.message);
-      throw error;
-    }
+    return new Shippo({
+      apiKeyHeader: apiKey,
+    });
   }
 
   async getFulfillmentOptions(): Promise<any[]> {
@@ -93,15 +69,15 @@ class ShippoFulfillmentService extends AbstractFulfillmentProviderService {
     console.log("[Shippo] calculatePrice called");
 
     try {
-      const shippo = this.getShippoClient();
+      const shippo = await this.getShippoClient();
       const cart = context as any;
 
-      // Validate shipping address exists
+      // Validate shipping address
       if (
         !cart.shipping_address?.postal_code ||
         !cart.shipping_address?.country_code
       ) {
-        console.log("[Shippo] Incomplete or missing shipping address");
+        console.log("[Shippo] Incomplete shipping address");
         return {
           calculated_amount: 0,
           is_calculated_price_tax_inclusive: false,
@@ -133,7 +109,7 @@ class ShippoFulfillmentService extends AbstractFulfillmentProviderService {
         country: cart.shipping_address.country_code || "",
       };
 
-      // Calculate total weight
+      // Calculate weight
       let totalWeight = 1;
       if (cart.items && Array.isArray(cart.items)) {
         totalWeight = cart.items.reduce((sum: number, item: any) => {
@@ -217,6 +193,7 @@ class ShippoFulfillmentService extends AbstractFulfillmentProviderService {
       };
     } catch (error: any) {
       console.error("[Shippo] Error:", error.message);
+      console.error("[Shippo] Stack:", error.stack);
       return {
         calculated_amount: 0,
         is_calculated_price_tax_inclusive: false,
@@ -231,7 +208,7 @@ class ShippoFulfillmentService extends AbstractFulfillmentProviderService {
     fulfillment: any,
   ): Promise<CreateFulfillmentResult> {
     try {
-      const shippo = this.getShippoClient();
+      const shippo = await this.getShippoClient();
       const metadata = (data as any).metadata || {};
       const rateId = metadata.shippo_rate_id;
 
@@ -258,8 +235,8 @@ class ShippoFulfillmentService extends AbstractFulfillmentProviderService {
           },
         ],
       };
-    } catch (error) {
-      console.error("[Shippo] Fulfillment error:", error);
+    } catch (error: any) {
+      console.error("[Shippo] Fulfillment error:", error.message);
       return { data: {}, labels: [] };
     }
   }
