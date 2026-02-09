@@ -14,7 +14,7 @@ class ShippoFulfillmentService extends AbstractFulfillmentProviderService {
   constructor(_: any, options?: Record<string, any>) {
     super();
     this.options_ = options || {};
-    console.log("[Shippo] Service initialized (lazy loading enabled)");
+    console.log("[Shippo] Service initialized (lazy loading enabled)"); //
   }
 
   private getShippoClient() {
