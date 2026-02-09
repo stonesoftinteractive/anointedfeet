@@ -1,11 +1,11 @@
 // src/modules/shippo-fulfillment/service.ts
+const Shippo = require("shippo").default;
+
 import { AbstractFulfillmentProviderService } from "@medusajs/framework/utils";
 import type {
   CalculatedShippingOptionPrice,
   CreateFulfillmentResult,
 } from "@medusajs/types";
-import * as SDKShippo from "shippo";
-
 class ShippoFulfillmentService extends AbstractFulfillmentProviderService {
   static identifier = "shippo-fulfillment";
 
@@ -16,10 +16,11 @@ class ShippoFulfillmentService extends AbstractFulfillmentProviderService {
     super();
 
     this.options_ = options || {};
-
     // Initialize Shippo correctly
-    this.shippo_ = new SDKShippo.Shippo({
-      apiKeyHeader: process.env.SHIPPO_API_KEY || "",
+    const apiKey = process.env.SHIPPO_API_KEY || "";
+
+    this.shippo_ = new Shippo({
+      apiKeyHeader: apiKey,
     });
   }
 
