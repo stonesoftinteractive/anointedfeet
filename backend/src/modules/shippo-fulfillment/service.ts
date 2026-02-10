@@ -269,7 +269,7 @@ class ShippoFulfillmentService extends AbstractFulfillmentProviderService {
       (data as any).metadata.shippo_rate_id = selectedRate.objectId;
       (data as any).metadata.carrier = selectedRate.provider;
 
-      const priceInCents = Math.round(parseFloat(selectedRate.amount) * 100);
+      const priceInDollars = Math.round(parseFloat(selectedRate.amount));
 
       console.log("[Shippo] SELECTED:", {
         type: isExpress ? "EXPRESS" : "STANDARD",
@@ -279,7 +279,7 @@ class ShippoFulfillmentService extends AbstractFulfillmentProviderService {
       });
 
       return {
-        calculated_amount: priceInCents,
+        calculated_amount: priceInDollars,
         is_calculated_price_tax_inclusive: false,
       };
     } catch (error: any) {
