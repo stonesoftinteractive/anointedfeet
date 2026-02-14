@@ -89,6 +89,11 @@ const medusaConfig = defineConfig({
       options: {
         providers: [
           {
+            resolve: "@medusajs/medusa/fulfillment-manual",
+            id: "manual-fulfillment",
+            options: {},
+          },
+          {
             resolve: "./src/modules/shippo-fulfillment",
             id: "shippo-fulfillment",
             options: {
