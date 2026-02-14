@@ -264,10 +264,12 @@ class ShippoFulfillmentService extends AbstractFulfillmentProviderService {
             token.includes("2_day") ||
             token.includes("second_day") ||
             token.includes("express") ||
+            token.includes("priority") ||
             name.includes("express") ||
             name.includes("overnight") ||
             name.includes("next day") ||
-            name.includes("2 day")
+            name.includes("2 day") ||
+            name.includes("priority")
           );
         });
       } else {
