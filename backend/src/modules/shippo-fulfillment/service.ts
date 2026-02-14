@@ -54,6 +54,10 @@ class ShippoFulfillmentService extends AbstractFulfillmentProviderService {
         id: "shippo-express",
         name: "Express Shipping",
       },
+      {
+        id: "shippo-free",
+        name: "Free Shipping",
+      },
     ];
   }
 
@@ -79,6 +83,15 @@ class ShippoFulfillmentService extends AbstractFulfillmentProviderService {
     context: any,
   ): Promise<CalculatedShippingOptionPrice> {
     try {
+      // Handle free shipping first
+      if (optionData.id === "shippo-free") {
+        console.log("[Shippo] Free shipping selected, returning $0");
+        return {
+          calculated_amount: 0,
+          is_calculated_price_tax_inclusive: false,
+        };
+      }
+
       const shippo = this.getShippoClient();
 
       const shippingAddress = context.shipping_address;
@@ -90,19 +103,33 @@ class ShippoFulfillmentService extends AbstractFulfillmentProviderService {
         };
       }
 
+      const destinationCountry = shippingAddress.country_code?.toUpperCase();
+      const originCountry = (
+        process.env.STORE_ADDRESS_COUNTRY || "US"
+      ).toUpperCase();
+      const isInternational = destinationCountry !== originCountry;
       const isExpress = optionData.id === "shippo-express";
 
-      // Origin Address
+      console.log("[Shippo] ============================================");
+      console.log(
+        "[Shippo] Shipping type:",
+        isInternational ? "INTERNATIONAL" : "DOMESTIC",
+      );
+      console.log("[Shippo] From:", originCountry, "To:", destinationCountry);
+      console.log(
+        "[Shippo] Service level:",
+        isExpress ? "EXPRESS" : "STANDARD",
+      );
+
       const addressFrom = {
         name: process.env.STORE_NAME || "Your Store",
         street1: process.env.STORE_ADDRESS_STREET || "",
         city: process.env.STORE_ADDRESS_CITY || "",
         state: process.env.STORE_ADDRESS_STATE || "",
         zip: process.env.STORE_ADDRESS_ZIP || "",
-        country: process.env.STORE_ADDRESS_COUNTRY || "US",
+        country: originCountry,
       };
 
-      // Destination Address
       const addressTo = {
         name:
           `${shippingAddress.first_name || ""} ${shippingAddress.last_name || ""}`.trim() ||
@@ -112,7 +139,7 @@ class ShippoFulfillmentService extends AbstractFulfillmentProviderService {
         city: shippingAddress.city || "",
         state: shippingAddress.province || shippingAddress.state || "",
         zip: shippingAddress.postal_code || "",
-        country: shippingAddress.country_code || "",
+        country: destinationCountry,
       };
 
       // Calculate weight
@@ -132,7 +159,7 @@ class ShippoFulfillmentService extends AbstractFulfillmentProviderService {
 
       if (totalWeight < 1) totalWeight = 1;
 
-      // Estimate box dimensions
+      // Box dimensions
       let parcelLength, parcelWidth, parcelHeight;
 
       if (totalWeight <= 1) {
@@ -157,112 +184,197 @@ class ShippoFulfillmentService extends AbstractFulfillmentProviderService {
         parcelHeight = Math.min(parcelHeight + 2, 12);
       }
 
-      console.log(
-        "[Shippo] Calculating for:",
-        isExpress ? "EXPRESS" : "STANDARD",
-      );
-
-      // Create Shipment
-      const shipment = await shippo.shipments.create({
-        addressFrom: addressFrom,
-        addressTo: addressTo,
+      const shipmentData: any = {
+        address_from: addressFrom,
+        address_to: addressTo,
         parcels: [
           {
             length: parcelLength.toString(),
             width: parcelWidth.toString(),
             height: parcelHeight.toString(),
-            distanceUnit: "in",
+            distance_unit: "in",
             weight: totalWeight.toFixed(2),
-            massUnit: "lb",
+            mass_unit: "lb",
           },
         ],
         async: false,
-      });
+      };
+
+      // Add customs declaration for international shipments
+      if (isInternational) {
+        console.log("[Shippo] Adding customs declaration");
+
+        const customsItems = [];
+
+        if (context.items && Array.isArray(context.items)) {
+          for (const item of context.items) {
+            const itemPrice = ((item.unit_price || 0) / 100).toFixed(2);
+
+            customsItems.push({
+              description: item.title || item.product?.title || "Merchandise",
+              quantity: item.quantity || 1,
+              net_weight: (
+                (item.variant?.weight || 0.5) * (item.quantity || 1)
+              ).toFixed(2),
+              mass_unit: "lb",
+              value_amount: itemPrice,
+              value_currency: "USD",
+              origin_country: originCountry,
+              tariff_number:
+                item.variant?.hs_code || item.product?.hs_code || "6115",
+            });
+          }
+        }
+
+        if (customsItems.length === 0) {
+          customsItems.push({
+            description: "Socks and apparel",
+            quantity: itemCount || 1,
+            net_weight: totalWeight.toFixed(2),
+            mass_unit: "lb",
+            value_amount: "25.00",
+            value_currency: "USD",
+            origin_country: originCountry,
+            tariff_number: "6115",
+          });
+        }
+
+        shipmentData.customs_declaration = {
+          contents_type: "MERCHANDISE",
+          contents_explanation: "Apparel and accessories",
+          non_delivery_option: "RETURN",
+          certify: true,
+          certify_signer: process.env.STORE_NAME || "Store Manager",
+          items: customsItems,
+        };
+      }
+
+      console.log("[Shippo] Creating shipment...");
+      const shipment = await shippo.shipments.create(shipmentData);
 
       if (!shipment.rates || shipment.rates.length === 0) {
-        console.error("[Shippo] No rates returned");
+        console.error("[Shippo] NO RATES RETURNED");
         return {
           calculated_amount: 0,
           is_calculated_price_tax_inclusive: false,
         };
       }
 
-      console.log("[Shippo] Available rates:");
-      shipment.rates.forEach((r: any) => {
-        console.log(
-          `  - ${r.provider} ${r.servicelevel?.name}: $${r.amount} (${r.servicelevel?.token})`,
-        );
+      console.log("[Shippo] ========== ALL AVAILABLE RATES ==========");
+      shipment.rates.forEach((rate: any, index: number) => {
+        console.log(`[Shippo] Rate ${index + 1}:`, {
+          provider: rate.provider,
+          service: rate.servicelevel?.name,
+          amount: `${rate.amount} ${rate.currency}`,
+          days: rate.estimated_days,
+        });
       });
 
-      // Updated service level map - more specific filtering
+      // Filter rates
       let filteredRates;
 
-      if (isExpress) {
-        // Express: Only overnight and 2-day services
-        filteredRates = shipment.rates.filter((rate: any) => {
-          const token = rate.servicelevel?.token?.toLowerCase() || "";
-          const name = rate.servicelevel?.name?.toLowerCase() || "";
+      if (isInternational) {
+        if (isExpress) {
+          filteredRates = shipment.rates.filter((rate: any) => {
+            const token = rate.servicelevel?.token?.toLowerCase() || "";
+            const name = rate.servicelevel?.name?.toLowerCase() || "";
+            const days = rate.estimated_days || 999;
 
-          return (
-            token.includes("next_day") ||
-            token.includes("overnight") ||
-            token.includes("2_day") ||
-            token.includes("second_day") ||
-            token.includes("express") ||
-            name.includes("express") ||
-            name.includes("overnight") ||
-            name.includes("next day") ||
-            name.includes("2 day")
-          );
-        });
+            return (
+              token.includes("express") ||
+              token.includes("priority") ||
+              name.includes("express") ||
+              name.includes("priority") ||
+              days <= 7
+            );
+          });
+        } else {
+          // Standard international - exclude express options
+          filteredRates = shipment.rates.filter((rate: any) => {
+            const token = rate.servicelevel?.token?.toLowerCase() || "";
+            const name = rate.servicelevel?.name?.toLowerCase() || "";
+
+            // Exclude express services
+            const isExpressService =
+              token.includes("express") ||
+              token.includes("priority") ||
+              name.includes("express") ||
+              name.includes("priority");
+
+            return !isExpressService;
+          });
+        }
       } else {
-        // Standard: Ground and priority, but NOT express or overnight
-        filteredRates = shipment.rates.filter((rate: any) => {
-          const token = rate.servicelevel?.token?.toLowerCase() || "";
-          const name = rate.servicelevel?.name?.toLowerCase() || "";
+        // Domestic filtering
+        if (isExpress) {
+          filteredRates = shipment.rates.filter((rate: any) => {
+            const token = rate.servicelevel?.token?.toLowerCase() || "";
+            const name = rate.servicelevel?.name?.toLowerCase() || "";
 
-          // Include ground, priority (but not express), and 3-day
-          const isStandard =
-            token.includes("ground") ||
-            token.includes("3_day") ||
-            token.includes("advantage") ||
-            (token.includes("priority") && !token.includes("express"));
+            return (
+              token.includes("next_day") ||
+              token.includes("overnight") ||
+              token.includes("2_day") ||
+              token.includes("second_day") ||
+              token.includes("express") ||
+              name.includes("express")
+            );
+          });
+        } else {
+          filteredRates = shipment.rates.filter((rate: any) => {
+            const token = rate.servicelevel?.token?.toLowerCase() || "";
+            const name = rate.servicelevel?.name?.toLowerCase() || "";
 
-          // Exclude express/overnight services
-          const isExpress =
-            token.includes("next_day") ||
-            token.includes("overnight") ||
-            token.includes("2_day") ||
-            token.includes("second_day") ||
-            token.includes("express") ||
-            name.includes("express") ||
-            name.includes("overnight");
+            const isStandard =
+              token.includes("ground") ||
+              token.includes("3_day") ||
+              token.includes("advantage") ||
+              (token.includes("priority") && !token.includes("express"));
 
-          return isStandard && !isExpress;
-        });
+            const isExpressService =
+              token.includes("next_day") ||
+              token.includes("overnight") ||
+              token.includes("2_day") ||
+              token.includes("express");
+
+            return isStandard && !isExpressService;
+          });
+        }
       }
 
-      console.log(
-        `[Shippo] Filtered ${isExpress ? "EXPRESS" : "STANDARD"} rates:`,
-        filteredRates.length,
-      );
-      filteredRates.forEach((r: any) => {
-        console.log(`  - ${r.provider} ${r.servicelevel?.name}: $${r.amount}`);
-      });
+      console.log(`[Shippo] Filtered rates:`, filteredRates.length);
 
       if (filteredRates.length === 0) {
-        console.warn("[Shippo] No matching rates, using cheapest available");
+        console.warn("[Shippo] No matching rates, using all available");
         filteredRates = shipment.rates;
       }
 
-      // Get cheapest rate
-      const selectedRate = filteredRates.reduce((cheapest: any, rate: any) => {
-        return parseFloat(rate.amount) < parseFloat(cheapest.amount)
-          ? rate
-          : cheapest;
+      // Sort by price (cheapest first)
+      filteredRates.sort((a: any, b: any) => {
+        return parseFloat(a.amount) - parseFloat(b.amount);
       });
 
-      // Store rate ID for label creation
+      // Log sorted rates
+      console.log("[Shippo] Sorted rates (cheapest to most expensive):");
+      filteredRates.forEach((rate: any, index: number) => {
+        console.log(
+          `[Shippo]   ${index + 1}. ${rate.provider} ${rate.servicelevel?.name}: $${rate.amount}`,
+        );
+      });
+
+      let selectedRate;
+
+      // SPECIAL LOGIC: For international standard, use SECOND cheapest
+      if (isInternational && !isExpress && filteredRates.length > 1) {
+        selectedRate = filteredRates[1]; // Index 1 = second cheapest
+        console.log(
+          "[Shippo] Using SECOND cheapest rate for international standard",
+        );
+      } else {
+        selectedRate = filteredRates[0]; // Cheapest
+        console.log("[Shippo] Using cheapest rate");
+      }
+
       if (!data.metadata) {
         (data as any).metadata = {};
       }
@@ -271,26 +383,27 @@ class ShippoFulfillmentService extends AbstractFulfillmentProviderService {
 
       const priceInDollars = Math.round(parseFloat(selectedRate.amount));
 
-      console.log("[Shippo] SELECTED:", {
-        type: isExpress ? "EXPRESS" : "STANDARD",
-        provider: selectedRate.provider,
-        service: selectedRate.servicelevel?.name,
-        amount: `$${selectedRate.amount}`,
-      });
+      console.log("[Shippo] ========== SELECTED RATE ==========");
+      console.log("[Shippo] Provider:", selectedRate.provider);
+      console.log("[Shippo] Service:", selectedRate.servicelevel?.name);
+      console.log(
+        "[Shippo] Amount:",
+        `$${selectedRate.amount} (${priceInDollars}¢)`,
+      );
+      console.log("[Shippo] ============================================");
 
       return {
         calculated_amount: priceInDollars,
         is_calculated_price_tax_inclusive: false,
       };
     } catch (error: any) {
-      console.error("[Shippo] Error:", error.message);
+      console.error("[Shippo] ERROR:", error.message);
       return {
         calculated_amount: 0,
         is_calculated_price_tax_inclusive: false,
       };
     }
   }
-
   async createFulfillment(
     data: Record<string, unknown>,
     items: any[],
