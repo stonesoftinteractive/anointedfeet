@@ -316,10 +316,7 @@ class ShippoFulfillmentService extends AbstractFulfillmentProviderService {
       });
 
       // For international express, use second cheapest
-      const selectedRate =
-        isInternational && isExpress && filteredRates.length > 1
-          ? filteredRates[1]
-          : filteredRates[0];
+      const selectedRate = filteredRates[0];
 
       if (!data.metadata) {
         (data as any).metadata = {};
