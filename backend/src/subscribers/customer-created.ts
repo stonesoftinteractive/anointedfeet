@@ -1,8 +1,7 @@
 import { SubscriberArgs, SubscriberConfig } from "@medusajs/medusa";
 import { ICustomerModuleService } from "@medusajs/types";
 import { Modules } from "@medusajs/utils";
-import { EmailService } from "modules/email/templates/service";
-
+import { EmailService } from "modules/email/service";
 export default async function customerCreatedHandler({
   event: { data },
   container,

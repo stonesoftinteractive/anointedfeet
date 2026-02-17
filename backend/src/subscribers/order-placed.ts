@@ -1,7 +1,7 @@
 import { SubscriberArgs, SubscriberConfig } from "@medusajs/medusa";
 import { IOrderModuleService } from "@medusajs/types";
 import { Modules } from "@medusajs/utils";
-import { EmailService } from "modules/email/templates/service";
+import { EmailService } from "modules/email/service";
 
 export default async function orderPlacedHandler({
   event: { data },
