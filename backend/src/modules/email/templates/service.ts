@@ -8,7 +8,8 @@ export class EmailService {
 
   constructor() {
     this.resend = new Resend(process.env.RESEND_API_KEY);
-    this.fromEmail = process.env.RESEND_FROM_EMAIL || "noreply@yourdomain.com";
+    this.fromEmail =
+      process.env.RESEND_FROM_EMAIL || "noreply@anointedfeetusa.com";
   }
 
   async sendOrderConfirmation(orderData: {
