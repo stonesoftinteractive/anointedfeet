@@ -1,6 +1,6 @@
 import { Resend } from "resend";
-import { OrderConfirmationEmail } from "./order-confirmation";
-import { WelcomeEmail } from "./welcome";
+import { OrderConfirmationEmail } from "./templates/order-confirmation";
+import { WelcomeEmail } from "./templates/welcome";
 
 export class EmailService {
   private resend: Resend;
