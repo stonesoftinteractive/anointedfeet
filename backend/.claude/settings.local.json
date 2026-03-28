@@ -1,0 +1,12 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(grep -r \"DetailWidgetProps\\\\|AdminOrder\" node_modules/@medusajs/types/dist --include=*.d.ts -l)",
+      "Bash(node -e \"const d=require\\(''./node_modules/@medusajs/types/package.json''\\); const {name,version,main,types,typesVersions,exports}=d; console.log\\(JSON.stringify\\({name,version,main,types,typesVersions,exports},null,2\\)\\)\")",
+      "Bash(grep -r DetailWidgetProps 'c:/Users/Charles/Documents/Stonesoft Interactive/anointedfeet/backend/node_modules/@medusajs' --include=*.d.ts -l)",
+      "Bash(grep -r AdminOrder 'c:/Users/Charles/Documents/Stonesoft Interactive/anointedfeet/backend/node_modules/@medusajs' --include=*.d.ts -l)",
+      "Bash(grep -r WidgetProps 'c:/Users/Charles/Documents/Stonesoft Interactive/anointedfeet/backend/node_modules/@medusajs' --include=*.d.ts -l)",
+      "Bash(grep -r \"DetailWidget\\\\|WidgetProps\\\\|widget.*props\\\\|Widget.*Props\" 'c:/Users/Charles/Documents/Stonesoft Interactive/anointedfeet/backend/node_modules/@medusajs/admin-sdk' --include=*.d.ts -l)"
+    ]
+  }
+}
