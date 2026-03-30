@@ -66,7 +66,7 @@ class ShippoFulfillmentService extends AbstractFulfillmentProviderService {
     data: Record<string, unknown>,
     context: Record<string, unknown>,
   ): Promise<Record<string, unknown>> {
-    return data;
+    return { ...data, option_id: optionData.id };
   }
 
   async validateOption(data: any): Promise<boolean> {
@@ -355,17 +355,180 @@ class ShippoFulfillmentService extends AbstractFulfillmentProviderService {
     fulfillment: any,
   ): Promise<CreateFulfillmentResult> {
     try {
-      const shippo = this.getShippoClient();
+      const optionId = (data.option_id || "") as string;
+      const isFree = optionId.includes("free");
+      const isExpress = optionId.includes("express");
 
-      // In a production flow, you would retrieve the rate_id stored during calculatePrice
-      // For this example, we assume fulfillment is being triggered
+      if (isFree) {
+        return { data: { ...data, status: "scheduled" }, labels: [] };
+      }
+
+      const shippo = this.getShippoClient();
+      const shippingAddress = order.shipping_address;
+
+      if (!shippingAddress?.postal_code || !shippingAddress?.country_code) {
+        console.warn("[Shippo] createFulfillment: missing shipping address");
+        return { data: { ...data, status: "scheduled" }, labels: [] };
+      }
+
+      const destinationCountry = shippingAddress.country_code.toUpperCase();
+      const originCountry = (
+        process.env.STORE_ADDRESS_COUNTRY || "US"
+      ).toUpperCase();
+      const isInternational = destinationCountry !== originCountry;
+
+      const addressFrom = {
+        name: process.env.STORE_NAME || "Your Store",
+        street1: process.env.STORE_ADDRESS_STREET || "",
+        city: process.env.STORE_ADDRESS_CITY || "",
+        state: process.env.STORE_ADDRESS_STATE || "",
+        zip: process.env.STORE_ADDRESS_ZIP || "",
+        country: originCountry,
+      };
+
+      const addressTo = {
+        name:
+          `${shippingAddress.first_name || ""} ${shippingAddress.last_name || ""}`.trim() ||
+          "Customer",
+        street1: shippingAddress.address_1 || "",
+        street2: shippingAddress.address_2 || "",
+        city: shippingAddress.city || "",
+        state: shippingAddress.province || shippingAddress.state || "",
+        zip: shippingAddress.postal_code || "",
+        country: destinationCountry,
+      };
+
+      let totalWeight = 0;
+      let itemCount = 0;
+      const orderItems = order.items || items || [];
+      orderItems.forEach((item: any) => {
+        const qty = item.quantity || 1;
+        const weight = item.variant?.weight || 0.5;
+        totalWeight += weight * qty;
+        itemCount += qty;
+      });
+      if (totalWeight < 1) totalWeight = 1;
+
+      let parcelLength: number, parcelWidth: number, parcelHeight: number;
+      if (totalWeight <= 1) {
+        parcelLength = 10;
+        parcelWidth = 7;
+        parcelHeight = 3;
+      } else if (totalWeight <= 3) {
+        parcelLength = 12;
+        parcelWidth = 9;
+        parcelHeight = 4;
+      } else if (totalWeight <= 5) {
+        parcelLength = 14;
+        parcelWidth = 10;
+        parcelHeight = 6;
+      } else {
+        parcelLength = 16;
+        parcelWidth = 12;
+        parcelHeight = 8;
+      }
+      if (itemCount > 3) parcelHeight = Math.min(parcelHeight + 2, 12);
+
+      const shipmentData: any = {
+        addressFrom,
+        addressTo,
+        parcels: [
+          {
+            length: parcelLength.toString(),
+            width: parcelWidth.toString(),
+            height: parcelHeight.toString(),
+            distanceUnit: "in",
+            weight: totalWeight.toFixed(2),
+            massUnit: "lb",
+          },
+        ],
+        async: false,
+      };
+
+      if (isInternational) {
+        shipmentData.customsDeclaration = {
+          contentsType: "MERCHANDISE",
+          contentsExplanation: "Apparel",
+          nonDeliveryOption: "RETURN",
+          certify: true,
+          certifySigner: process.env.STORE_NAME || "Store Manager",
+          items: orderItems.map((item: any) => ({
+            description: item.title || "Merchandise",
+            quantity: item.quantity || 1,
+            netWeight: (
+              (item.variant?.weight || 0.5) * (item.quantity || 1)
+            ).toFixed(2),
+            massUnit: "lb",
+            valueAmount: ((item.unit_price || 0) / 100).toFixed(2),
+            valueCurrency: "USD",
+            originCountry,
+            tariffNumber: "6115",
+          })),
+        };
+      }
+
+      const shipment = await shippo.shipments.create(shipmentData);
+
+      if (!shipment.rates?.length) {
+        console.error("[Shippo] createFulfillment: no rates returned");
+        return { data: { ...data, status: "scheduled" }, labels: [] };
+      }
+
+      let filteredRates = shipment.rates.filter((rate: any) => {
+        const token = rate.servicelevel?.token?.toLowerCase() || "";
+        const name = rate.servicelevel?.name?.toLowerCase() || "";
+        if (isExpress) {
+          return (
+            token.includes("next_day") ||
+            token.includes("overnight") ||
+            token.includes("2_day") ||
+            token.includes("second_day") ||
+            token.includes("express") ||
+            name.includes("express") ||
+            name.includes("overnight") ||
+            name.includes("next day") ||
+            name.includes("priority")
+          );
+        }
+        const isStd =
+          token.includes("ground") ||
+          token.includes("3_day") ||
+          token.includes("advantage") ||
+          (token.includes("priority") && !token.includes("express"));
+        const isExp =
+          token.includes("next_day") ||
+          token.includes("overnight") ||
+          token.includes("2_day") ||
+          token.includes("express") ||
+          name.includes("express");
+        return isStd && !isExp;
+      });
+
+      if (!filteredRates.length) filteredRates = shipment.rates;
+      filteredRates.sort(
+        (a: any, b: any) => parseFloat(a.amount) - parseFloat(b.amount),
+      );
+
+      const selectedRate = filteredRates[0];
+      console.log("[Shippo] createFulfillment selected rate:", {
+        provider: selectedRate.provider,
+        service: selectedRate.servicelevel?.name,
+        amount: selectedRate.amount,
+        rateId: selectedRate.objectId,
+      });
+
       return {
-        data: { ...data, status: "scheduled" },
+        data: {
+          ...data,
+          status: "scheduled",
+          shippo_rate_id: selectedRate.objectId,
+          carrier: selectedRate.provider,
+        },
         labels: [],
       };
-    } catch (error) {
-      console.error("[Shippo] Fulfillment error:", error);
-      return { data: {}, labels: [] };
+    } catch (error: any) {
+      console.error("[Shippo] createFulfillment error:", error.message);
+      return { data: { ...data, status: "scheduled" }, labels: [] };
     }
   }
 
