@@ -11,7 +11,7 @@ export default async function fulfillmentCreatedHandler({
   });
 
   // Get the selected Shippo rate from metadata
-  const shippoRateId = fulfillment.metadata?.shippo_rate_id;
+  const shippoRateId = (fulfillment.data as any)?.shippo_rate_id;
 
   if (shippoRateId) {
     const { result } = await createShippingLabelWorkflow(container).run({
