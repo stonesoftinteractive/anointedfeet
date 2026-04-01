@@ -8,30 +8,15 @@ export default async function fulfillmentCreatedHandler({
   container,
 }: SubscriberArgs<{ id: string }>) {
   const fulfillmentModule = container.resolve("fulfillment");
-  const query = container.resolve(ContainerRegistrationKeys.QUERY);
-
   const [fulfillment] = await fulfillmentModule.listFulfillments({
     id: data.id,
   });
 
-  // Fetch order data via link — shippo_rate_id is stored in order metadata by the frontend
-  const { data: [fulfillmentWithOrder] } = await query.graph({
-    entity: "fulfillment",
-    fields: [
-      "order.id",
-      "order.email",
-      "order.display_id",
-      "order.metadata",
-      "order.shipping_address.first_name",
-    ],
-    filters: { id: data.id },
-  });
-
-  const order = fulfillmentWithOrder?.order;
-  const shippoRateId = order?.metadata?.shippo_rate_id as string | undefined;
+  // shippo_rate_id is stored in fulfillment.data by ShippoFulfillmentService.createFulfillment()
+  const shippoRateId = (fulfillment.data as any)?.shippo_rate_id as string | undefined;
 
   if (!shippoRateId) {
-    console.log(`[Shippo] No shippo_rate_id on order ${order?.id}, skipping label creation`);
+    console.log(`[Shippo] No shippo_rate_id on fulfillment ${data.id}, skipping label creation`);
     return;
   }
 
@@ -55,8 +40,22 @@ export default async function fulfillmentCreatedHandler({
       },
     });
 
-    if (order?.email) {
-      try {
+    // Send shipping notification email to customer
+    try {
+      const query = container.resolve(ContainerRegistrationKeys.QUERY);
+      const { data: [fulfillmentWithOrder] } = await query.graph({
+        entity: "fulfillment",
+        fields: [
+          "order.id",
+          "order.email",
+          "order.display_id",
+          "order.shipping_address.first_name",
+        ],
+        filters: { id: data.id },
+      });
+
+      const order = fulfillmentWithOrder?.order;
+      if (order?.email) {
         const emailService = new EmailService();
         await emailService.sendShippingNotification({
           customerEmail: order.email,
@@ -66,9 +65,9 @@ export default async function fulfillmentCreatedHandler({
           trackingUrl: result.trackingUrl || result.labelUrl,
           carrier: result.carrier || "Carrier",
         });
-      } catch (error) {
-        console.error("Failed to send shipping notification email:", error);
       }
+    } catch (error) {
+      console.error("Failed to send shipping notification email:", error);
     }
   }
 }
