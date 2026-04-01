@@ -1,4 +1,5 @@
 import { Resend } from "resend";
+import { AdminOrderNotificationEmail } from "./templates/admin-order-notification";
 import { OrderConfirmationEmail } from "./templates/order-confirmation";
 import { ShippingNotificationEmail } from "./templates/shipping-notification";
 import { WelcomeEmail } from "./templates/welcome";
@@ -48,6 +49,39 @@ export class EmailService {
       return data;
     } catch (error) {
       console.error("Failed to send order confirmation email:", error);
+      throw error;
+    }
+  }
+
+  async sendAdminOrderNotification(orderData: {
+    customerName: string;
+    customerEmail: string;
+    orderNumber: string;
+    orderTotal: string;
+    orderItems: Array<{
+      title: string;
+      quantity: number;
+      price: string;
+    }>;
+    orderDate: string;
+  }) {
+    try {
+      const { data, error } = await this.resend.emails.send({
+        from: this.fromEmail,
+        to: "info@anointedfeetusa.com",
+        subject: `New Order #${orderData.orderNumber} Received`,
+        html: AdminOrderNotificationEmail(orderData),
+      });
+
+      if (error) {
+        console.error("Error sending admin order notification email:", error);
+        throw error;
+      }
+
+      console.log("Admin order notification email sent:", data);
+      return data;
+    } catch (error) {
+      console.error("Failed to send admin order notification email:", error);
       throw error;
     }
   }

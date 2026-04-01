@@ -32,17 +32,33 @@ export default async function orderPlacedHandler({
     const customerName = order.shipping_address?.first_name || "Customer";
     const orderTotal = order.total ? Number(order.total) / 100 : 0;
 
+    const orderNumber = order.display_id?.toString() || order.id;
+    const orderDate = new Date(order.created_at).toLocaleDateString();
+
     await emailService.sendOrderConfirmation({
       customerEmail: order.email || "",
       customerName,
-      orderNumber: order.display_id?.toString() || order.id,
+      orderNumber,
       orderTotal: `$${orderTotal.toFixed(2)}`,
       orderItems,
-      orderDate: new Date(order.created_at).toLocaleDateString(),
+      orderDate,
     });
 
     console.log(
       `Order confirmation email sent for order ${order.display_id || order.id}`,
+    );
+
+    await emailService.sendAdminOrderNotification({
+      customerName,
+      customerEmail: order.email || "",
+      orderNumber,
+      orderTotal: `$${orderTotal.toFixed(2)}`,
+      orderItems,
+      orderDate,
+    });
+
+    console.log(
+      `Admin order notification email sent for order ${order.display_id || order.id}`,
     );
   } catch (error) {
     console.error("Error in order placed handler:", error);
