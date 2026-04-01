@@ -15,6 +15,7 @@ const createShippoLabelStep = createStep(
     return new StepResponse({
       labelUrl: transaction.labelUrl,
       trackingNumber: transaction.trackingNumber,
+      trackingUrl: transaction.trackingUrlProvider,
       carrier:
         typeof transaction.rate === "string"
           ? transaction.rate

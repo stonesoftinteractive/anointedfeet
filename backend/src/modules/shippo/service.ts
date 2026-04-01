@@ -41,10 +41,17 @@ class ShippoModuleService extends MedusaService({}) {
   }
 
   async createLabel(rateId: string) {
-    return await this.shippo_.transactions.create({
+    const transaction = await this.shippo_.transactions.create({
       rate: rateId,
       async: false,
     });
+
+    return {
+      labelUrl: transaction.labelUrl,
+      trackingNumber: transaction.trackingNumber,
+      trackingUrlProvider: transaction.trackingUrlProvider,
+      rate: transaction.rate,
+    };
   }
 
   async trackShipment(carrier: string, trackingNumber: string) {
