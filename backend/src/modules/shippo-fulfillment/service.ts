@@ -517,14 +517,41 @@ class ShippoFulfillmentService extends AbstractFulfillmentProviderService {
         rateId: selectedRate.objectId,
       });
 
+      // Purchase the label immediately
+      const transaction = await shippo.transactions.create({
+        rate: selectedRate.objectId,
+        async: false,
+      });
+
+      if (!transaction.labelUrl || !transaction.trackingNumber) {
+        console.error("[Shippo] createFulfillment: label creation failed", transaction);
+        return {
+          data: { ...data, status: "scheduled", shippo_rate_id: selectedRate.objectId },
+          labels: [],
+        };
+      }
+
+      console.log("[Shippo] Label created:", {
+        trackingNumber: transaction.trackingNumber,
+        labelUrl: transaction.labelUrl,
+      });
+
       return {
         data: {
           ...data,
           status: "scheduled",
           shippo_rate_id: selectedRate.objectId,
           carrier: selectedRate.provider,
+          tracking_number: transaction.trackingNumber,
+          label_url: transaction.labelUrl,
         },
-        labels: [],
+        labels: [
+          {
+            tracking_number: transaction.trackingNumber,
+            tracking_url: transaction.trackingUrlProvider ?? transaction.labelUrl,
+            label_url: transaction.labelUrl,
+          },
+        ],
       };
     } catch (error: any) {
       console.error("[Shippo] createFulfillment error:", error.message);

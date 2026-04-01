@@ -21,7 +21,7 @@ export default async function orderPlacedHandler({
     // Prepare order data for email
     const orderItems =
       order.items?.map((item: any) => {
-        const unitPrice = item.unit_price ? Number(item.unit_price) / 100 : 0;
+        const unitPrice = item.unit_price ? Number(item.unit_price) : 0;
         return {
           title: item.title || item.variant_title || "Product",
           quantity: item.quantity,
@@ -30,7 +30,7 @@ export default async function orderPlacedHandler({
       }) || [];
 
     const customerName = order.shipping_address?.first_name || "Customer";
-    const orderTotal = order.total ? Number(order.total) / 100 : 0;
+    const orderTotal = order.total ? Number(order.total) : 0;
 
     const orderNumber = order.display_id?.toString() || order.id;
     const orderDate = new Date(order.created_at).toLocaleDateString();
