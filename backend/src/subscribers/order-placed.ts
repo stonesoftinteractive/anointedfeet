@@ -15,7 +15,7 @@ export default async function orderPlacedHandler({
   try {
     // Fetch the full order details
     const order = await orderModuleService.retrieveOrder(data.id, {
-      relations: ["items", "items.variant", "shipping_address"],
+      relations: ["items", "shipping_address"],
     });
 
     // Prepare order data for email
