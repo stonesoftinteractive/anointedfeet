@@ -6,12 +6,12 @@ import { EmailService } from "../modules/email/service";
 export default async function fulfillmentCreatedHandler({
   event: { data },
   container,
-}: SubscriberArgs<{ id: string }>) {
-  console.log(`[Shippo] fulfillment.created subscriber triggered for fulfillment: ${data.id}`);
+}: SubscriberArgs<{ order_id: string; fulfillment_id: string }>) {
+  console.log(`[Shippo] order.fulfillment_created triggered for fulfillment: ${data.fulfillment_id}`);
 
   const fulfillmentModule = container.resolve("fulfillment");
   const [fulfillment] = await fulfillmentModule.listFulfillments({
-    id: data.id,
+    id: data.fulfillment_id,
   });
 
   console.log(`[Shippo] fulfillment.data:`, JSON.stringify(fulfillment?.data));
@@ -20,7 +20,7 @@ export default async function fulfillmentCreatedHandler({
   const shippoRateId = (fulfillment.data as any)?.shippo_rate_id as string | undefined;
 
   if (!shippoRateId) {
-    console.log(`[Shippo] No shippo_rate_id on fulfillment ${data.id}, skipping label creation`);
+    console.log(`[Shippo] No shippo_rate_id on fulfillment ${data.fulfillment_id}, skipping label creation`);
     return;
   }
 
@@ -29,7 +29,7 @@ export default async function fulfillmentCreatedHandler({
   });
 
   if (result.trackingNumber && result.labelUrl) {
-    await fulfillmentModule.updateFulfillment(data.id, {
+    await fulfillmentModule.updateFulfillment(data.fulfillment_id, {
       labels: [
         {
           tracking_number: result.trackingNumber,
@@ -55,7 +55,7 @@ export default async function fulfillmentCreatedHandler({
           "order.display_id",
           "order.shipping_address.first_name",
         ],
-        filters: { id: data.id },
+        filters: { id: data.fulfillment_id },
       });
 
       const order = fulfillmentWithOrder?.order;
