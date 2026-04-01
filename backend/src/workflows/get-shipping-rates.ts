@@ -19,17 +19,21 @@ const getShippoRatesStep = createStep(
       country: process.env.STORE_ADDRESS_COUNTRY,
     };
 
+    if (!cart.shipping_address?.city || !cart.shipping_address?.postal_code) {
+      return new StepResponse([]);
+    }
+
     const addressTo = {
       name:
-        cart.shipping_address.first_name +
+        (cart.shipping_address.first_name || "") +
         " " +
-        cart.shipping_address.last_name,
-      street1: cart.shipping_address.address_1,
+        (cart.shipping_address.last_name || ""),
+      street1: cart.shipping_address.address_1 || "",
       street2: cart.shipping_address.address_2 || "",
       city: cart.shipping_address.city,
-      state: cart.shipping_address.province,
+      state: cart.shipping_address.province || "",
       zip: cart.shipping_address.postal_code,
-      country: cart.shipping_address.country_code,
+      country: cart.shipping_address.country_code || "US",
     };
 
     // Calculate parcel dimensions from cart items
