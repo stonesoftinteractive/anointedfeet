@@ -42,7 +42,7 @@ const getShippoRatesStep = createStep(
         length: "10",
         width: "8",
         height: "4",
-        distance_unit: "in",
+        distanceUnit: "in",
         weight: cart.items
           .reduce(
             (sum: number, item: any) =>
@@ -50,7 +50,7 @@ const getShippoRatesStep = createStep(
             0,
           )
           .toString(),
-        mass_unit: "lb",
+        massUnit: "lb",
       },
     ];
 
