@@ -1,4 +1,4 @@
-import { SubscriberArgs, SubscriberConfig } from "@medusajs/medusa";
+import type { SubscriberArgs, SubscriberConfig } from "@medusajs/framework";
 import { ICustomerModuleService } from "@medusajs/types";
 import { Modules } from "@medusajs/utils";
 import { EmailService } from "modules/email/service";
