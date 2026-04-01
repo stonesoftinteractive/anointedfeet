@@ -1,5 +1,6 @@
 import { Resend } from "resend";
 import { OrderConfirmationEmail } from "./templates/order-confirmation";
+import { ShippingNotificationEmail } from "./templates/shipping-notification";
 import { WelcomeEmail } from "./templates/welcome";
 
 export class EmailService {
@@ -47,6 +48,41 @@ export class EmailService {
       return data;
     } catch (error) {
       console.error("Failed to send order confirmation email:", error);
+      throw error;
+    }
+  }
+
+  async sendShippingNotification(shipmentData: {
+    customerEmail: string;
+    customerName: string;
+    orderNumber: string;
+    trackingNumber: string;
+    trackingUrl: string;
+    carrier: string;
+  }) {
+    try {
+      const { data, error } = await this.resend.emails.send({
+        from: this.fromEmail,
+        to: shipmentData.customerEmail,
+        subject: `Your Order #${shipmentData.orderNumber} Has Shipped!`,
+        html: ShippingNotificationEmail({
+          customerName: shipmentData.customerName,
+          orderNumber: shipmentData.orderNumber,
+          trackingNumber: shipmentData.trackingNumber,
+          trackingUrl: shipmentData.trackingUrl,
+          carrier: shipmentData.carrier,
+        }),
+      });
+
+      if (error) {
+        console.error("Error sending shipping notification email:", error);
+        throw error;
+      }
+
+      console.log("Shipping notification email sent:", data);
+      return data;
+    } catch (error) {
+      console.error("Failed to send shipping notification email:", error);
       throw error;
     }
   }
