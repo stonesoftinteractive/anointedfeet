@@ -7,10 +7,14 @@ export default async function fulfillmentCreatedHandler({
   event: { data },
   container,
 }: SubscriberArgs<{ id: string }>) {
+  console.log(`[Shippo] fulfillment.created subscriber triggered for fulfillment: ${data.id}`);
+
   const fulfillmentModule = container.resolve("fulfillment");
   const [fulfillment] = await fulfillmentModule.listFulfillments({
     id: data.id,
   });
+
+  console.log(`[Shippo] fulfillment.data:`, JSON.stringify(fulfillment?.data));
 
   // shippo_rate_id is stored in fulfillment.data by ShippoFulfillmentService.createFulfillment()
   const shippoRateId = (fulfillment.data as any)?.shippo_rate_id as string | undefined;
