@@ -119,6 +119,7 @@ class ShippoFulfillmentService extends AbstractFulfillmentProviderService {
         zip: process.env.STORE_ADDRESS_ZIP || "",
         country: originCountry,
         email: process.env.STORE_EMAIL || "",
+        phone: process.env.STORE_PHONE || "",
       };
 
       // Destination Address
@@ -132,6 +133,8 @@ class ShippoFulfillmentService extends AbstractFulfillmentProviderService {
         state: shippingAddress.province || shippingAddress.state || "",
         zip: shippingAddress.postal_code || "",
         country: destinationCountry,
+        email: shippingAddress.email || "",
+        phone: shippingAddress.phone || "",
       };
 
       // Calculate weight
@@ -386,6 +389,7 @@ class ShippoFulfillmentService extends AbstractFulfillmentProviderService {
         zip: process.env.STORE_ADDRESS_ZIP || "",
         country: originCountry,
         email: process.env.STORE_EMAIL || "",
+        phone: process.env.STORE_PHONE || "",
       };
 
       const addressTo = {
@@ -399,6 +403,7 @@ class ShippoFulfillmentService extends AbstractFulfillmentProviderService {
         zip: shippingAddress.postal_code || "",
         country: destinationCountry,
         email: order.email || shippingAddress.email || "",
+        phone: shippingAddress.phone || "",
       };
 
       let totalWeight = 0;
