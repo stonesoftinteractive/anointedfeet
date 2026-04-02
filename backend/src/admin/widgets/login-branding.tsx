@@ -1,4 +1,4 @@
-import { defineWidgetConfig } from "@medusajs/admin-shared"
+import { defineWidgetConfig } from "@medusajs/admin-sdk"
 import { useEffect } from "react"
 import logo from "../../media/admin-logo.png"
 
