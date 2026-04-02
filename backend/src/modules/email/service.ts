@@ -92,6 +92,7 @@ export class EmailService {
     orderNumber: string;
     trackingNumber: string;
     trackingUrl: string;
+    labelUrl?: string;
     carrier: string;
   }) {
     try {
@@ -104,6 +105,7 @@ export class EmailService {
           orderNumber: shipmentData.orderNumber,
           trackingNumber: shipmentData.trackingNumber,
           trackingUrl: shipmentData.trackingUrl,
+          labelUrl: shipmentData.labelUrl,
           carrier: shipmentData.carrier,
         }),
       });

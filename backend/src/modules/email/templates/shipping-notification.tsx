@@ -3,6 +3,7 @@ interface ShippingNotificationEmailProps {
   orderNumber: string;
   trackingNumber: string;
   trackingUrl: string;
+  labelUrl?: string;
   carrier: string;
 }
 
@@ -11,6 +12,7 @@ export const ShippingNotificationEmail = ({
   orderNumber,
   trackingNumber,
   trackingUrl,
+  labelUrl,
   carrier,
 }: ShippingNotificationEmailProps) => {
   return `
@@ -57,6 +59,10 @@ export const ShippingNotificationEmail = ({
                               </td>
                             </tr>
                           </table>
+                          ${labelUrl ? `
+                          <p style="margin: 15px 0 0 0;">
+                            <a href="${labelUrl}" style="color: #014139; text-decoration: underline;">View Shipping Label</a>
+                          </p>` : ''}
                         </td>
                       </tr>
                     </table>
