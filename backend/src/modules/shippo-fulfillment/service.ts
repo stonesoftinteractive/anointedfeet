@@ -118,6 +118,7 @@ class ShippoFulfillmentService extends AbstractFulfillmentProviderService {
         state: process.env.STORE_ADDRESS_STATE || "",
         zip: process.env.STORE_ADDRESS_ZIP || "",
         country: originCountry,
+        email: process.env.STORE_EMAIL || "",
       };
 
       // Destination Address
@@ -384,6 +385,7 @@ class ShippoFulfillmentService extends AbstractFulfillmentProviderService {
         state: process.env.STORE_ADDRESS_STATE || "",
         zip: process.env.STORE_ADDRESS_ZIP || "",
         country: originCountry,
+        email: process.env.STORE_EMAIL || "",
       };
 
       const addressTo = {
@@ -396,6 +398,7 @@ class ShippoFulfillmentService extends AbstractFulfillmentProviderService {
         state: shippingAddress.province || shippingAddress.state || "",
         zip: shippingAddress.postal_code || "",
         country: destinationCountry,
+        email: order.email || shippingAddress.email || "",
       };
 
       let totalWeight = 0;
