@@ -5,81 +5,81 @@ import { EmailService } from "../modules/email/service";
 export default async function shipmentCreatedHandler({
   event: { data },
   container,
-}: SubscriberArgs<{ order_id: string; fulfillment_id: string }>) {
+}: SubscriberArgs<{ id: string; no_notification: boolean }>) {
   console.log(
-    `[Email] order.shipment_created triggered for order: ${data.order_id}, fulfillment: ${data.fulfillment_id}`
+    `[Email] shipment.created triggered for fulfillment: ${data.id}`
   );
+
+  if (data.no_notification) {
+    console.log(`[Email] no_notification=true, skipping email`);
+    return;
+  }
 
   try {
     const query = container.resolve(ContainerRegistrationKeys.QUERY);
 
+    // Look up the fulfillment directly by ID (event payload `id` is the fulfillment ID)
     const {
-      data: [orderData],
+      data: [fulfillment],
     } = await query.graph({
-      entity: "order",
+      entity: "fulfillment",
       fields: [
         "id",
-        "display_id",
-        "email",
-        "shipping_address.first_name",
-        "fulfillments.id",
-        "fulfillments.metadata",
-        "fulfillments.labels.tracking_number",
-        "fulfillments.labels.tracking_url",
-        "fulfillments.labels.label_url",
+        "metadata",
+        "labels.tracking_number",
+        "labels.tracking_url",
+        "labels.label_url",
+        "order.id",
+        "order.display_id",
+        "order.email",
+        "order.shipping_address.first_name",
       ],
-      filters: { id: data.order_id },
+      filters: { id: data.id },
     });
 
-    if (!orderData?.email) {
+    if (!fulfillment?.order?.email) {
       console.log(
-        `[Email] No email found for order ${data.order_id}, skipping notification`
+        `[Email] No email found for fulfillment ${data.id}, skipping notification`
       );
       return;
     }
 
-    // Find the fulfillment that was just shipped
-    const fulfillment = data.fulfillment_id
-      ? orderData.fulfillments?.find((f: any) => f.id === data.fulfillment_id)
-      : orderData.fulfillments?.[orderData.fulfillments.length - 1];
-
-    // Skip if this fulfillment was handled by the Shippo auto-flow
-    if ((fulfillment?.metadata as any)?.shippo_label_url) {
+    // Skip if this fulfillment was already handled by the Shippo auto-flow
+    if ((fulfillment.metadata as any)?.shippo_label_url) {
       console.log(
-        `[Email] Fulfillment ${fulfillment?.id} was handled by Shippo auto-flow, skipping duplicate notification`
+        `[Email] Fulfillment ${data.id} was handled by Shippo auto-flow, skipping duplicate notification`
       );
       return;
     }
 
-    const labels: any[] = fulfillment?.labels || [];
+    const labels: any[] = fulfillment.labels || [];
     const latestLabel = labels[labels.length - 1];
 
     if (!latestLabel?.tracking_number) {
       console.log(
-        `[Email] No tracking number found for fulfillment ${fulfillment?.id}, skipping notification`
+        `[Email] No tracking number on fulfillment ${data.id}, skipping notification`
       );
       return;
     }
 
+    const order = fulfillment.order;
     const emailService = new EmailService();
     await emailService.sendShippingNotification({
-      customerEmail: orderData.email,
-      customerName: orderData.shipping_address?.first_name || "Customer",
-      orderNumber: orderData.display_id?.toString() || orderData.id,
+      customerEmail: order.email,
+      customerName: order.shipping_address?.first_name || "Customer",
+      orderNumber: order.display_id?.toString() || order.id,
       trackingNumber: latestLabel.tracking_number,
       trackingUrl: latestLabel.tracking_url || "",
       labelUrl: latestLabel.label_url || "",
       carrier: "Carrier",
     });
 
-    console.log(
-      `[Email] Shipping notification sent for order ${data.order_id}`
-    );
+    console.log(`[Email] Shipping notification sent for fulfillment ${data.id}`);
   } catch (error) {
     console.error("[Email] Failed to send shipping notification:", error);
   }
 }
 
 export const config: SubscriberConfig = {
-  event: "order.shipment_created",
+  event: "shipment.created",
 };
