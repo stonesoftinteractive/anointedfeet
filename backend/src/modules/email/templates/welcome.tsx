@@ -40,7 +40,7 @@ export const WelcomeEmail = ({ customerName, email }: WelcomeEmailProps) => {
                           <table cellpadding="0" cellspacing="0" style="margin: 0 auto;">
                             <tr>
                               <td style="background-color: #014139; border-radius: 5px;">
-                                <a href="https://yourstore.com/shop" style="display: inline-block; padding: 12px 24px; color: #ffffff; text-decoration: none; font-weight: bold;">
+                                <a href="https://anointedfeetusa.com" style="display: inline-block; padding: 12px 24px; color: #ffffff; text-decoration: none; font-weight: bold;">
                                   Start Shopping
                                 </a>
                               </td>

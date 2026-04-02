@@ -30,7 +30,9 @@ export default async function orderPlacedHandler({
       }) || [];
 
     const customerName = order.shipping_address?.first_name || "Customer";
-    const orderTotal = order.total ? Number(order.total) : 0;
+    const orderTotal = order.items?.reduce((sum: number, item: any) => {
+      return sum + (item.unit_price ? Number(item.unit_price) : 0) * (item.quantity || 1);
+    }, 0) || 0;
 
     const orderNumber = order.display_id?.toString() || order.id;
     const orderDate = new Date(order.created_at).toLocaleDateString();
