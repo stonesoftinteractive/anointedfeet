@@ -1,8 +1,20 @@
 import { defineWidgetConfig } from "@medusajs/admin-sdk"
-import { useEffect } from "react"
-import logo from "../../media/admin-logo.png"
+import { useEffect, useState } from "react"
+import logoLight from "../../media/admin-logo.png"
+import logoDark from "../../media/admin-logo-white.png"
 
 const LoginBranding = () => {
+  const [isDark, setIsDark] = useState(
+    () => window.matchMedia("(prefers-color-scheme: dark)").matches
+  )
+
+  useEffect(() => {
+    const mq = window.matchMedia("(prefers-color-scheme: dark)")
+    const handler = (e: MediaQueryListEvent) => setIsDark(e.matches)
+    mq.addEventListener("change", handler)
+    return () => mq.removeEventListener("change", handler)
+  }, [])
+
   useEffect(() => {
     const styleId = "af-login-override"
     if (!document.getElementById(styleId)) {
@@ -34,7 +46,7 @@ const LoginBranding = () => {
     >
       {/* Logo */}
       <img
-        src={logo}
+        src={isDark ? logoDark : logoLight}
         alt="Anointed Feet"
         style={{ width: 140, marginBottom: 14 }}
       />

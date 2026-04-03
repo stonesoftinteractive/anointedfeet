@@ -19,6 +19,7 @@ export default async function fulfillmentCreatedHandler({
 
   // Skip label creation for customization-only fulfillments (all items are "Default variant")
   const items: any[] = (fulfillment as any)?.items || [];
+  console.log(`[Shippo] fulfillment items titles:`, items.map((i: any) => i.title));
   const isCustomizationFulfillment =
     items.length > 0 &&
     items.every((item: any) => item.title === "Default variant");
