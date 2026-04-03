@@ -17,6 +17,13 @@ export const WelcomeEmail = ({ customerName, email }: WelcomeEmailProps) => {
             <td align="center">
               <table width="600" cellpadding="0" cellspacing="0" style="max-width: 600px; background-color: #ffffff;">
                 
+                <!-- Logo -->
+                <tr>
+                  <td style="background-color: #ffffff; padding: 20px; text-align: center;">
+                    <img src="https://anointedfeetusa.com/admin-logo.png" alt="Anointed Feet" style="max-width: 160px; height: auto; display: block; margin: 0 auto;" />
+                  </td>
+                </tr>
+
                 <!-- Header -->
                 <tr>
                   <td style="background-color: #014139; color: #ffffff; padding: 20px; text-align: center;">
