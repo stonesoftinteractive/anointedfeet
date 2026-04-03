@@ -17,20 +17,6 @@ export default async function fulfillmentCreatedHandler({
 
   console.log(`[Shippo] fulfillment.data:`, JSON.stringify(fulfillment?.data));
 
-  // Skip label creation for customization-only fulfillments (all items are "Default variant")
-  const items: any[] = (fulfillment as any)?.items || [];
-  console.log(`[Shippo] fulfillment items titles:`, items.map((i: any) => i.title));
-  const isCustomizationFulfillment =
-    items.length > 0 &&
-    items.every((item: any) => item.title === "Default variant");
-
-  if (isCustomizationFulfillment) {
-    console.log(
-      `[Shippo] Fulfillment ${data.fulfillment_id} contains only customization items, skipping label creation`
-    );
-    return;
-  }
-
   // shippo_rate_id is stored in fulfillment.data by ShippoFulfillmentService.createFulfillment()
   const shippoRateId = (fulfillment.data as any)?.shippo_rate_id as string | undefined;
 

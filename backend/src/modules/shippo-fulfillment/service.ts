@@ -367,6 +367,17 @@ class ShippoFulfillmentService extends AbstractFulfillmentProviderService {
         return { data: { ...data, status: "scheduled" }, labels: [] };
       }
 
+      // Skip label creation for customization-only fulfillments
+      const fulfillmentItems = items || [];
+      const isCustomizationFulfillment =
+        fulfillmentItems.length > 0 &&
+        fulfillmentItems.every((item: any) => item.title === "Default variant");
+
+      if (isCustomizationFulfillment) {
+        console.log("[Shippo] Skipping label creation for customization-only fulfillment");
+        return { data: { ...data, status: "scheduled" }, labels: [] };
+      }
+
       const shippo = this.getShippoClient();
       const shippingAddress = order.shipping_address;
 

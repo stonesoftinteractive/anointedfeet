@@ -34,8 +34,9 @@ export const AdminOrderNotificationEmail = ({
 
                 <!-- Logo -->
                 <tr>
-                  <td style="background-color: #ffffff; padding: 20px; text-align: center;">
+                  <td style="background-color: #ffffff; padding: 20px 20px 8px 20px; text-align: center;">
                     <img src="https://anointedfeetusa.com/admin-logo.png" alt="Anointed Feet" style="max-width: 160px; height: auto; display: block; margin: 0 auto;" />
+                    <p style="margin: 6px 0 0 0; font-size: 11px; font-weight: 700; letter-spacing: 0.18em; text-transform: uppercase; color: #111111; font-family: Arial, sans-serif;">Anointed Feet</p>
                   </td>
                 </tr>
 
