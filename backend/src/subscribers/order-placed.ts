@@ -37,31 +37,43 @@ export default async function orderPlacedHandler({
     const orderNumber = order.display_id?.toString() || order.id;
     const orderDate = new Date(order.created_at).toLocaleDateString();
 
-    await emailService.sendOrderConfirmation({
-      customerEmail: order.email || "",
-      customerName,
-      orderNumber,
-      orderTotal: `$${orderTotal.toFixed(2)}`,
-      orderItems,
-      orderDate,
-    });
+    if (order.email) {
+      try {
+        await emailService.sendOrderConfirmation({
+          customerEmail: order.email,
+          customerName,
+          orderNumber,
+          orderTotal: `$${orderTotal.toFixed(2)}`,
+          orderItems,
+          orderDate,
+        });
+        console.log(
+          `Order confirmation email sent for order ${order.display_id || order.id}`,
+        );
+      } catch (error) {
+        console.error("Error sending order confirmation email:", error);
+      }
+    } else {
+      console.warn(
+        `No customer email found for order ${order.display_id || order.id}, skipping confirmation email`,
+      );
+    }
 
-    console.log(
-      `Order confirmation email sent for order ${order.display_id || order.id}`,
-    );
-
-    await emailService.sendAdminOrderNotification({
-      customerName,
-      customerEmail: order.email || "",
-      orderNumber,
-      orderTotal: `$${orderTotal.toFixed(2)}`,
-      orderItems,
-      orderDate,
-    });
-
-    console.log(
-      `Admin order notification email sent for order ${order.display_id || order.id}`,
-    );
+    try {
+      await emailService.sendAdminOrderNotification({
+        customerName,
+        customerEmail: order.email || "",
+        orderNumber,
+        orderTotal: `$${orderTotal.toFixed(2)}`,
+        orderItems,
+        orderDate,
+      });
+      console.log(
+        `Admin order notification email sent for order ${order.display_id || order.id}`,
+      );
+    } catch (error) {
+      console.error("Error sending admin order notification email:", error);
+    }
   } catch (error) {
     console.error("Error in order placed handler:", error);
   }
