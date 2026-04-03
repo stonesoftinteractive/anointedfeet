@@ -1,37 +1,37 @@
-import { defineWidgetConfig } from "@medusajs/admin-sdk"
-import { useEffect, useState } from "react"
-import logo from "../../media/admin-logo.png"
+import { defineWidgetConfig } from "@medusajs/admin-sdk";
+import { useEffect, useState } from "react";
+import logo from "../../media/admin-logo.png";
 
 const LoginBranding = () => {
   const [isDark, setIsDark] = useState(
-    () => window.matchMedia("(prefers-color-scheme: dark)").matches
-  )
+    () => window.matchMedia("(prefers-color-scheme: dark)").matches,
+  );
 
   useEffect(() => {
-    const mq = window.matchMedia("(prefers-color-scheme: dark)")
-    const handler = (e: MediaQueryListEvent) => setIsDark(e.matches)
-    mq.addEventListener("change", handler)
-    return () => mq.removeEventListener("change", handler)
-  }, [])
+    const mq = window.matchMedia("(prefers-color-scheme: dark)");
+    const handler = (e: MediaQueryListEvent) => setIsDark(e.matches);
+    mq.addEventListener("change", handler);
+    return () => mq.removeEventListener("change", handler);
+  }, []);
 
   useEffect(() => {
-    const styleId = "af-login-override"
+    const styleId = "af-login-override";
     if (!document.getElementById(styleId)) {
-      const style = document.createElement("style")
-      style.id = styleId
+      const style = document.createElement("style");
+      style.id = styleId;
       style.textContent = `
         /* Hide default Medusa AvatarBox and heading on login page */
         .bg-ui-bg-subtle .max-w-\\[280px\\] > *:nth-child(1),
         .bg-ui-bg-subtle .max-w-\\[280px\\] > *:nth-child(2) {
           display: none !important;
         }
-      `
-      document.head.appendChild(style)
+      `;
+      document.head.appendChild(style);
     }
     return () => {
-      document.getElementById("af-login-override")?.remove()
-    }
-  }, [])
+      document.getElementById("af-login-override")?.remove();
+    };
+  }, []);
 
   return (
     <div
@@ -49,20 +49,6 @@ const LoginBranding = () => {
         alt="Anointed Feet"
         style={{ width: 140, marginBottom: 6 }}
       />
-
-      {/* Brand name */}
-      <p
-        style={{
-          fontSize: 11,
-          fontWeight: 700,
-          letterSpacing: "0.18em",
-          textTransform: "uppercase",
-          color: isDark ? "#ffffff" : "#111111",
-          margin: "0 0 14px 0",
-        }}
-      >
-        Anointed Feet
-      </p>
 
       {/* Heading */}
       <h2
@@ -87,11 +73,11 @@ const LoginBranding = () => {
         Sign in to access the account area
       </p>
     </div>
-  )
-}
+  );
+};
 
 export const config = defineWidgetConfig({
   zone: "login.before",
-})
+});
 
-export default LoginBranding
+export default LoginBranding;
