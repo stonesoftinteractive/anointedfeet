@@ -1,7 +1,6 @@
 import { defineWidgetConfig } from "@medusajs/admin-sdk"
 import { useEffect, useState } from "react"
-import logoLight from "../../media/admin-logo.png"
-import logoDark from "../../media/admin-logo-white.png"
+import logo from "../../media/admin-logo.png"
 
 const LoginBranding = () => {
   const [isDark, setIsDark] = useState(
@@ -46,10 +45,24 @@ const LoginBranding = () => {
     >
       {/* Logo */}
       <img
-        src={isDark ? logoDark : logoLight}
+        src={logo}
         alt="Anointed Feet"
-        style={{ width: 140, marginBottom: 14 }}
+        style={{ width: 140, marginBottom: 6 }}
       />
+
+      {/* Brand name */}
+      <p
+        style={{
+          fontSize: 11,
+          fontWeight: 700,
+          letterSpacing: "0.18em",
+          textTransform: "uppercase",
+          color: isDark ? "#ffffff" : "#111111",
+          margin: "0 0 14px 0",
+        }}
+      >
+        Anointed Feet
+      </p>
 
       {/* Heading */}
       <h2
